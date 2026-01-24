@@ -122,7 +122,18 @@ export async function writeArchitecture(projectRoot: string, missionId: string, 
 // ============================================================================
 
 export async function readTasks(projectRoot: string, missionId: string): Promise<TasksFile | null> {
-  return readJson<TasksFile>(paths.getTasksPath(projectRoot, missionId));
+  const filePath = paths.getTasksPath(projectRoot, missionId);
+  if (!existsSync(filePath)) {
+    return null;
+  }
+  const content = await readFile(filePath, "utf-8");
+  const parsed = JSON.parse(content);
+
+  // Handle both formats: raw array [...] or wrapped object {tasks: [...]}
+  if (Array.isArray(parsed)) {
+    return { tasks: parsed };
+  }
+  return parsed as TasksFile;
 }
 
 export async function writeTasks(projectRoot: string, missionId: string, tasks: TasksFile): Promise<void> {
