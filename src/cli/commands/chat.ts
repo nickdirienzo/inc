@@ -15,6 +15,64 @@ const __dirname = dirname(__filename);
 // From dist/cli/commands/chat.js -> package root
 const STRIKE_PLUGIN_PATH = join(__dirname, "..", "..", "..");
 
+// Animated spinner with fun messages
+const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+const THINKING_MESSAGES = [
+  "thinking",
+  "pondering",
+  "cooking",
+  "brewing",
+  "mulling",
+  "considering",
+  "plotting",
+  "scheming",
+  "ruminating",
+  "percolating",
+];
+
+class Spinner {
+  private intervalId: ReturnType<typeof setInterval> | null = null;
+  private frameIndex = 0;
+  private messageIndex = 0;
+  private tickCount = 0;
+
+  start(): void {
+    this.frameIndex = 0;
+    this.messageIndex = Math.floor(Math.random() * THINKING_MESSAGES.length);
+    this.tickCount = 0;
+
+    // Hide cursor
+    process.stdout.write("\x1B[?25l");
+
+    this.intervalId = setInterval(() => {
+      this.frameIndex = (this.frameIndex + 1) % SPINNER_FRAMES.length;
+      this.tickCount++;
+
+      // Change message every ~3 seconds (30 ticks at 100ms)
+      if (this.tickCount % 30 === 0) {
+        this.messageIndex = (this.messageIndex + 1) % THINKING_MESSAGES.length;
+      }
+
+      const frame = SPINNER_FRAMES[this.frameIndex];
+      const message = THINKING_MESSAGES[this.messageIndex];
+      const dots = ".".repeat((this.tickCount % 4));
+
+      // Clear line and write spinner
+      process.stdout.write(`\r\x1B[K${frame} ${message}${dots}`);
+    }, 100);
+  }
+
+  stop(): void {
+    if (this.intervalId) {
+      clearInterval(this.intervalId);
+      this.intervalId = null;
+    }
+    // Clear spinner line and show cursor
+    process.stdout.write("\r\x1B[K");
+    process.stdout.write("\x1B[?25h");
+  }
+}
+
 /**
  * Build a summary of all known Strike projects for context
  */
@@ -217,13 +275,44 @@ export const chatCommand = new Command("chat")
       }
 
       console.log(`Chatting with ${options.role} about: ${mission.description}`);
-      console.log("Type your message and press Enter. Type 'exit' to quit.");
+      console.log("Enter sends. Empty line after text = multiline done. 'exit' to quit.");
       console.log("");
 
       const rl = createInterface({
         input: process.stdin,
         output: process.stdout,
       });
+
+      // Collect input with multiline support
+      // Pattern: accumulate lines, empty line after content submits
+      const collectInput = (): Promise<string> => {
+        const lines: string[] = [];
+
+        return new Promise((resolve) => {
+          const readLine = (): void => {
+            const prompt = lines.length === 0 ? "> " : "  ";
+            rl.question(prompt, (line) => {
+              // Empty line after content = submit
+              if (line === "" && lines.length > 0) {
+                resolve(lines.join("\n"));
+                return;
+              }
+
+              // First empty line = just keep prompting
+              if (line === "" && lines.length === 0) {
+                readLine();
+                return;
+              }
+
+              // Accumulate the line
+              lines.push(line);
+              readLine();
+            });
+          };
+
+          readLine();
+        });
+      };
 
       const missionDir = getMissionDir(projectRoot, missionId);
       const chatsDir = getChatsDir(projectRoot, missionId);
@@ -255,6 +344,10 @@ export const chatCommand = new Command("chat")
         messages: [],
       };
 
+      // Track session ID for multi-turn conversation within this chat session
+      // This is NOT persisted between different `strike chat` invocations
+      let sessionId: string | undefined;
+
       const cleanup = async (): Promise<void> => {
         // Save transcript on exit
         transcript.endedAt = new Date().toISOString();
@@ -264,84 +357,97 @@ export const chatCommand = new Command("chat")
         }
       };
 
-      const askQuestion = (): void => {
-        rl.question("> ", async (input) => {
-          const trimmed = input.trim();
+      const askQuestion = async (): Promise<void> => {
+        const input = await collectInput();
+        const trimmed = input.trim();
 
-          if (trimmed.toLowerCase() === "exit") {
-            await cleanup();
-            console.log("Goodbye!");
-            rl.close();
-            return;
-          }
+        if (trimmed.toLowerCase() === "exit") {
+          await cleanup();
+          console.log("Goodbye!");
+          rl.close();
+          return;
+        }
 
-          if (!trimmed) {
-            askQuestion();
-            return;
-          }
-
-          // Record user message
-          transcript.messages.push({
-            role: "user",
-            content: trimmed,
-            timestamp: new Date().toISOString(),
-          });
-
-          try {
-            // Fresh session each time - no resume
-            // Include Skill tool and Strike plugin for CLI commands
-            const allTools = [...allowedTools, "Skill", "Bash"];
-            const queryOptions: Parameters<typeof query>[0]["options"] = {
-              cwd: projectRoot,
-              systemPrompt,
-              tools: allTools,
-              allowedTools: allTools,
-              permissionMode: "acceptEdits",
-              additionalDirectories: [missionDir],
-              plugins: [{ type: "local", path: STRIKE_PLUGIN_PATH }],
-            };
-
-            let response = "";
-            for await (const message of query({
-              prompt: trimmed,
-              options: queryOptions,
-            })) {
-              // Print assistant responses
-              if (message.type === "assistant") {
-                const betaMessage = message.message;
-                for (const block of betaMessage.content) {
-                  if (block.type === "text") {
-                    response += block.text;
-                  }
-                }
-              }
-
-              // Handle result
-              if (message.type === "result") {
-                if (message.subtype === "success") {
-                  console.log("");
-                  console.log(response || message.result);
-                  console.log("");
-                } else {
-                  console.error("Error:", message.errors?.join(", ") || message.subtype);
-                }
-              }
-            }
-
-            // Record assistant response
-            if (response) {
-              transcript.messages.push({
-                role: "assistant",
-                content: response,
-                timestamp: new Date().toISOString(),
-              });
-            }
-          } catch (error) {
-            console.error("Agent error:", error);
-          }
-
+        if (!trimmed) {
           askQuestion();
+          return;
+        }
+
+        // Record user message
+        transcript.messages.push({
+          role: "user",
+          content: trimmed,
+          timestamp: new Date().toISOString(),
         });
+
+        const spinner = new Spinner();
+        spinner.start();
+
+        try {
+          // Include Skill tool and Strike plugin for CLI commands
+          const allTools = [...allowedTools, "Skill", "Bash"];
+          const queryOptions: Parameters<typeof query>[0]["options"] = {
+            cwd: projectRoot,
+            systemPrompt,
+            tools: allTools,
+            allowedTools: allTools,
+            permissionMode: "acceptEdits",
+            additionalDirectories: [missionDir],
+            plugins: [{ type: "local", path: STRIKE_PLUGIN_PATH }],
+          };
+
+          // Resume session for multi-turn conversation within this chat
+          if (sessionId) {
+            queryOptions.resume = sessionId;
+          }
+
+          let response = "";
+          for await (const message of query({
+            prompt: trimmed,
+            options: queryOptions,
+          })) {
+            // Capture session ID from init message for multi-turn conversation
+            if (message.type === "system" && message.subtype === "init") {
+              sessionId = message.session_id;
+            }
+
+            // Print assistant responses
+            if (message.type === "assistant") {
+              const betaMessage = message.message;
+              for (const block of betaMessage.content) {
+                if (block.type === "text") {
+                  response += block.text;
+                }
+              }
+            }
+
+            // Handle result
+            if (message.type === "result") {
+              spinner.stop();
+              if (message.subtype === "success") {
+                console.log("");
+                console.log(response || message.result);
+                console.log("");
+              } else {
+                console.error("Error:", message.errors?.join(", ") || message.subtype);
+              }
+            }
+          }
+
+          // Record assistant response
+          if (response) {
+            transcript.messages.push({
+              role: "assistant",
+              content: response,
+              timestamp: new Date().toISOString(),
+            });
+          }
+        } catch (error) {
+          spinner.stop();
+          console.error("Agent error:", error);
+        }
+
+        askQuestion();
       };
 
       // Handle Ctrl+C gracefully
