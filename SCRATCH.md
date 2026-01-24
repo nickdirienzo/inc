@@ -6,3 +6,7 @@ Run `strike approve spec execute-the-next-phase-of-plan-md` when you're ready fo
 what i would like is to live in a global command center and be proactively asked for input instead of me having to poll
 
 we need to use a responses-like API for the agents or maybe a skill to interact with the daemon? because the tech lead submitted tasks.json wrong
+
+how do we handle sequencing? i think the TL handles that?
+
+the logfile is going to grow really big. we should have log rotation.
