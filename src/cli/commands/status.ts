@@ -6,7 +6,8 @@ export const statusCommand = new Command("status")
   .description("Show status of missions")
   .argument("[mission-id]", "Specific mission to show (optional)")
   .option("-g, --global", "Show all missions across all projects")
-  .action(async (missionId: string | undefined, options: { global?: boolean }) => {
+  .option("--include-abandoned", "Include abandoned missions in output")
+  .action(async (missionId: string | undefined, options: { global?: boolean; includeAbandoned?: boolean }) => {
     let projectRoot = process.cwd();
 
     try {
@@ -18,9 +19,22 @@ export const statusCommand = new Command("status")
           return;
         }
 
-        console.log("All Strike missions:\n");
+        // Filter out abandoned missions unless --include-abandoned is set
+        const filteredMissions = [];
         for (const entry of allMissions) {
           const mission = await readMission(entry.projectPath, entry.missionId);
+          if (mission?.status !== "abandoned" || options.includeAbandoned) {
+            filteredMissions.push({ entry, mission });
+          }
+        }
+
+        if (filteredMissions.length === 0) {
+          console.log("No active missions found. Use --include-abandoned to see abandoned missions.");
+          return;
+        }
+
+        console.log("All Strike missions:\n");
+        for (const { entry, mission } of filteredMissions) {
           const status = mission?.status ?? "unknown";
           const attention = mission?.needs_attention ? " ⚠️" : "";
           console.log(`  ${entry.missionId}: ${status}${attention}`);
@@ -117,13 +131,24 @@ export const statusCommand = new Command("status")
           return;
         }
 
-        console.log("Missions:");
+        // Filter out abandoned missions unless --include-abandoned is set
+        const activeMissions = [];
         for (const id of missionIds) {
           const mission = await readMission(projectRoot, id);
-          if (mission) {
-            const attentionFlag = mission.needs_attention ? " ⚠️" : "";
-            console.log(`  ${mission.id}: ${mission.status}${attentionFlag}`);
+          if (mission && (mission.status !== "abandoned" || options.includeAbandoned)) {
+            activeMissions.push(mission);
           }
+        }
+
+        if (activeMissions.length === 0) {
+          console.log("No active missions found. Use --include-abandoned to see abandoned missions.");
+          return;
+        }
+
+        console.log("Missions:");
+        for (const mission of activeMissions) {
+          const attentionFlag = mission.needs_attention ? " ⚠️" : "";
+          console.log(`  ${mission.id}: ${mission.status}${attentionFlag}`);
         }
       }
     } catch (error) {

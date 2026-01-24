@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import { readMission, writeMission } from "../../state/index.js";
 import type { MissionStatus } from "../../state/index.js";
+import { squashMissionIntoMain, cleanupMissionWorkspaces } from "../../jj/index.js";
 
 export const approveCommand = new Command("approve")
   .description("Approve spec, plan, or PR for a mission")
@@ -43,6 +44,21 @@ export const approveCommand = new Command("approve")
             console.error(`Cannot approve PR: mission status is ${mission.status}, expected review`);
             process.exit(1);
           }
+
+          // Squash mission workspace into main
+          const squashResult = await squashMissionIntoMain(projectRoot, missionId);
+          if (!squashResult.success) {
+            console.error(`Failed to squash mission into main: ${squashResult.error}`);
+            process.exit(1);
+          }
+
+          // Clean up mission workspaces
+          const cleanupResult = await cleanupMissionWorkspaces(projectRoot, missionId);
+          if (!cleanupResult.success) {
+            console.warn(`Warning: Failed to cleanup workspaces: ${cleanupResult.error}`);
+            // Continue anyway - cleanup is not critical
+          }
+
           newStatus = "done";
           message = "PR approved. Mission is complete!";
           break;
