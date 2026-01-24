@@ -50,3 +50,7 @@ export function getDaemonLogPath(projectRoot: string): string {
 export function getDaemonStatePath(projectRoot: string): string {
   return join(getStrikeDir(projectRoot), "daemon.json");
 }
+
+export function getChatsDir(projectRoot: string, missionId: string): string {
+  return join(getMissionDir(projectRoot, missionId), "chats");
+}
