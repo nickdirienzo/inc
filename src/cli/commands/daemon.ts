@@ -8,7 +8,7 @@ import {
   removeDaemonPid,
   getDaemonLogPath,
 } from "../../state/index.js";
-import { createWriteStream, existsSync } from "node:fs";
+import { existsSync, openSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -46,12 +46,12 @@ daemonCommand
     // Find the daemon script
     const daemonScript = join(__dirname, "..", "..", "daemon", "index.js");
 
-    // Spawn detached process
-    const logStream = createWriteStream(logPath, { flags: "a" });
+    // Open log file and get file descriptor for detached spawn
+    const logFd = openSync(logPath, "a");
 
     const child = spawn(process.execPath, [daemonScript, projectRoot], {
       detached: true,
-      stdio: ["ignore", logStream, logStream],
+      stdio: ["ignore", logFd, logFd],
       cwd: projectRoot,
     });
 

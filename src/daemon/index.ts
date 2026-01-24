@@ -296,8 +296,14 @@ async function checkAndSpawnAgents(): Promise<void> {
     }
 
     switch (mission.status) {
+      case "new":
       case "spec_in_progress":
         // PM should be working on spec
+        // Update status if new
+        if (mission.status === "new") {
+          mission.status = "spec_in_progress";
+          await writeMission(projectRoot, mission);
+        }
         spawnPmAgent(mission);
         break;
 
