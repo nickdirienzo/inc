@@ -1,0 +1,85 @@
+/**
+ * State schema for Strike missions and tasks
+ */
+
+export type MissionStatus =
+  | "new"
+  | "spec_in_progress"
+  | "spec_complete"
+  | "plan_in_progress"
+  | "plan_complete"
+  | "coding"
+  | "review"
+  | "done";
+
+export type TaskStatus =
+  | "not_started"
+  | "in_progress"
+  | "done"
+  | "blocked"
+  | "failed";
+
+export interface NeedsAttention {
+  from: "pm" | "tech_lead" | "coder";
+  question: string;
+}
+
+export interface Mission {
+  id: string;
+  description: string;
+  status: MissionStatus;
+  created_at: string;
+  updated_at: string;
+  needs_attention?: NeedsAttention;
+  pr_number?: number;
+}
+
+export interface Task {
+  id: number;
+  name: string;
+  description: string;
+  status: TaskStatus;
+  blocked_by: number[];
+  assignee: string | null;
+  jj_commit: string | null;
+  feedback?: string;
+}
+
+export interface TasksFile {
+  tasks: Task[];
+}
+
+export interface Decision {
+  timestamp: string;
+  role: "pm" | "tech_lead" | "coder";
+  decision: string;
+  reasoning: string;
+}
+
+/**
+ * Structure of the .strike directory for a mission
+ */
+export interface MissionDirectory {
+  missionJson: Mission;
+  specMd?: string;
+  architectureMd?: string;
+  tasksJson?: TasksFile;
+  decisionsMd?: string;
+}
+
+/**
+ * Daemon state persisted to disk
+ */
+export interface DaemonState {
+  pid: number;
+  started_at: string;
+  active_agents: ActiveAgent[];
+}
+
+export interface ActiveAgent {
+  mission_id: string;
+  role: "pm" | "tech_lead" | "coder";
+  task_id?: number;
+  session_id: string;
+  started_at: string;
+}
