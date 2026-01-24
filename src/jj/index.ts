@@ -93,6 +93,16 @@ export function getWorkspacesDir(projectRoot: string, missionId: string): string
 }
 
 /**
+ * Get the path for the mission workspace
+ */
+export function getMissionWorkspacePath(
+  projectRoot: string,
+  missionId: string
+): string {
+  return getWorkspacesDir(projectRoot, missionId);
+}
+
+/**
  * Get the path for a specific task's workspace
  */
 export function getTaskWorkspacePath(
@@ -104,10 +114,54 @@ export function getTaskWorkspacePath(
 }
 
 /**
+ * Create a workspace for a mission
+ *
+ * This creates a new jj workspace at .strike/workspaces/<mission-id>/
+ * The workspace starts from the main branch.
+ */
+export async function createMissionWorkspace(
+  projectRoot: string,
+  missionId: string
+): Promise<{ success: boolean; workspacePath: string; error?: string }> {
+  const workspacePath = getMissionWorkspacePath(projectRoot, missionId);
+  const workspaceName = `strike-${missionId}`;
+
+  // Ensure the parent .strike/workspaces/ directory exists
+  const workspacesBaseDir = join(projectRoot, ".strike", "workspaces");
+  await mkdir(workspacesBaseDir, { recursive: true });
+
+  // Check if workspace already exists
+  try {
+    await access(workspacePath);
+    // Already exists, that's fine
+    return { success: true, workspacePath };
+  } catch {
+    // Doesn't exist, create it
+  }
+
+  // Create the workspace
+  // -r main means start from the main branch
+  const result = await runJj(
+    ["workspace", "add", "--name", workspaceName, "-r", "main", workspacePath],
+    { cwd: projectRoot }
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      workspacePath,
+      error: result.stderr || "Failed to create workspace",
+    };
+  }
+
+  return { success: true, workspacePath };
+}
+
+/**
  * Create a workspace for a task
  *
  * This creates a new jj workspace at .strike/workspaces/<mission-id>/task-<task-id>/
- * The workspace starts from the current main branch.
+ * The workspace branches from the mission workspace (strike-<mission-id>@).
  */
 export async function createTaskWorkspace(
   projectRoot: string,
@@ -131,9 +185,9 @@ export async function createTaskWorkspace(
   }
 
   // Create the workspace
-  // -r @ means start from the current working copy commit
+  // -r strike-<missionId>@ means branch from the mission workspace
   const result = await runJj(
-    ["workspace", "add", "--name", workspaceName, workspacePath],
+    ["workspace", "add", "--name", workspaceName, "-r", `strike-${missionId}@`, workspacePath],
     { cwd: projectRoot }
   );
 
@@ -259,6 +313,50 @@ export async function squashCommit(
 }
 
 /**
+ * Squash a task workspace into the mission workspace
+ */
+export async function squashTaskIntoMission(
+  projectRoot: string,
+  missionId: string,
+  taskId: number
+): Promise<{ success: boolean; error?: string }> {
+  const fromWorkspace = `strike-${missionId}-task-${taskId}@`;
+  const intoWorkspace = `strike-${missionId}@`;
+
+  const result = await runJj(
+    ["squash", "--from", fromWorkspace, "--into", intoWorkspace],
+    { cwd: projectRoot }
+  );
+
+  return {
+    success: result.success,
+    error: result.success ? undefined : result.stderr,
+  };
+}
+
+/**
+ * Squash the mission workspace commit into main
+ * This is the final squash when approving a PR
+ */
+export async function squashMissionIntoMain(
+  projectRoot: string,
+  missionId: string
+): Promise<{ success: boolean; error?: string }> {
+  const missionWorkspaceName = `strike-${missionId}`;
+
+  // Squash the mission workspace's commit into its parent (main)
+  const result = await runJj(
+    ["squash", "--from", missionWorkspaceName],
+    { cwd: projectRoot }
+  );
+
+  return {
+    success: result.success,
+    error: result.success ? undefined : result.stderr,
+  };
+}
+
+/**
  * Get the current commit info
  */
 export async function getCurrentCommit(
@@ -298,4 +396,42 @@ export async function getCurrentCommit(
 export async function hasChanges(workspacePath: string): Promise<boolean> {
   const result = await runJj(["diff", "--stat"], { cwd: workspacePath });
   return result.success && result.stdout.length > 0;
+}
+
+/**
+ * Clean up all workspaces for a mission
+ *
+ * This forgets the mission workspace and all task workspaces, then deletes
+ * the mission workspace directory. Used during PR approval cleanup.
+ */
+export async function cleanupMissionWorkspaces(
+  projectRoot: string,
+  missionId: string
+): Promise<{ success: boolean; error?: string }> {
+  // Get list of all workspaces
+  const workspaces = await listWorkspaces(projectRoot);
+
+  // Filter for workspaces matching this mission
+  const missionWorkspaceName = `strike-${missionId}`;
+  const taskWorkspacePrefix = `strike-${missionId}-task-`;
+
+  const missionWorkspaces = workspaces.filter(
+    (ws) => ws.name === missionWorkspaceName || ws.name.startsWith(taskWorkspacePrefix)
+  );
+
+  // Forget each workspace (be permissive - don't fail if some operations fail)
+  for (const workspace of missionWorkspaces) {
+    await runJj(["workspace", "forget", workspace.name], { cwd: projectRoot });
+    // Ignore failures - this is cleanup, we want to continue even if some fail
+  }
+
+  // Delete the mission workspace directory
+  const missionWorkspacePath = getMissionWorkspacePath(projectRoot, missionId);
+  try {
+    await rm(missionWorkspacePath, { recursive: true, force: true });
+  } catch {
+    // Ignore if doesn't exist
+  }
+
+  return { success: true };
 }

@@ -6,7 +6,9 @@ import { newCommand } from "./commands/new.js";
 import { chatCommand } from "./commands/chat.js";
 import { statusCommand } from "./commands/status.js";
 import { approveCommand } from "./commands/approve.js";
+import { abandonCommand } from "./commands/abandon.js";
 import { daemonCommand } from "./commands/daemon.js";
+import { abandonCommand } from "./commands/abandon.js";
 
 const program = new Command();
 
@@ -20,6 +22,8 @@ program.addCommand(newCommand);
 program.addCommand(chatCommand);
 program.addCommand(statusCommand);
 program.addCommand(approveCommand);
+program.addCommand(abandonCommand);
 program.addCommand(daemonCommand);
+program.addCommand(abandonCommand);
 
 program.parse();

@@ -10,7 +10,8 @@ export type MissionStatus =
   | "plan_complete"
   | "coding"
   | "review"
-  | "done";
+  | "done"
+  | "abandoned";
 
 export type TaskStatus =
   | "not_started"
@@ -32,6 +33,7 @@ export interface Mission {
   updated_at: string;
   needs_attention?: NeedsAttention;
   pr_number?: number;
+  workspace_path?: string;
 }
 
 export interface Task {

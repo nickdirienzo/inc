@@ -23,6 +23,8 @@ import {
 import { getPmPrompt, getTechLeadPrompt, getCoderPrompt } from "../prompts/index.js";
 import {
   createTaskWorkspace,
+  createMissionWorkspace,
+  squashTaskIntoMission,
   describeCommit,
   isJjRepo,
 } from "../jj/index.js";
@@ -221,7 +223,7 @@ async function spawnCoderAgent(mission: Mission, task: Task): Promise<void> {
         tools: ["Read", "Glob", "Grep", "Edit", "Write", "Bash"],
         allowedTools: ["Read", "Glob", "Grep", "Edit", "Write", "Bash"],
         permissionMode: "acceptEdits",
-        additionalDirectories: [missionDir, projectRoot], // Allow reading from main repo too
+        additionalDirectories: [missionDir], // Only allow access to mission state dir
         maxTurns: 30,
       },
     })) {
@@ -261,6 +263,30 @@ async function spawnCoderAgent(mission: Mission, task: Task): Promise<void> {
           t.status = "done";
         }
         await writeTasks(projectRoot, mission.id, updatedTasks);
+
+        // If task is done and we're using jj, squash task into mission workspace
+        if (t.status === "done" && useJjWorkspace) {
+          log(`Squashing task ${task.id} into mission workspace for ${mission.id}`);
+          const squashResult = await squashTaskIntoMission(
+            projectRoot,
+            mission.id,
+            task.id
+          );
+          if (!squashResult.success) {
+            log(`Failed to squash task ${task.id}: ${squashResult.error}`);
+            // Re-read mission to get latest state
+            const currentMission = await readMission(projectRoot, mission.id);
+            if (currentMission) {
+              currentMission.needs_attention = {
+                from: "tech_lead",
+                question: `Failed to squash task ${task.id} into mission workspace: ${squashResult.error}`,
+              };
+              await writeMission(projectRoot, currentMission);
+            }
+          } else {
+            log(`Successfully squashed task ${task.id} into mission workspace`);
+          }
+        }
       }
     }
   } catch (error) {
@@ -295,6 +321,11 @@ async function checkAndSpawnAgents(): Promise<void> {
       continue;
     }
 
+    // Skip if abandoned
+    if (mission.status === "abandoned") {
+      continue;
+    }
+
     switch (mission.status) {
       case "new":
       case "spec_in_progress":
@@ -313,6 +344,26 @@ async function checkAndSpawnAgents(): Promise<void> {
         break;
 
       case "coding":
+        // Create mission workspace if it doesn't exist
+        const useJj = await isJjRepo(projectRoot);
+        if (useJj) {
+          const wsResult = await createMissionWorkspace(projectRoot, missionId);
+          if (!wsResult.success) {
+            log(`Failed to create mission workspace for ${missionId}: ${wsResult.error}`);
+            mission.needs_attention = {
+              from: "tech_lead",
+              question: `Failed to create mission workspace: ${wsResult.error}`,
+            };
+            await writeMission(projectRoot, mission);
+            continue;
+          }
+          log(`Mission workspace ready at ${wsResult.workspacePath}`);
+
+          // Store workspace path in mission.json
+          mission.workspace_path = wsResult.workspacePath;
+          await writeMission(projectRoot, mission);
+        }
+
         // Find tasks that need coders
         const tasksFile = await readTasks(projectRoot, missionId);
         if (tasksFile) {
