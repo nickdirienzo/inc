@@ -52,22 +52,47 @@
 
 #### jj Workspace Model
 
-Each Coder works in its own isolated jj workspace to enable parallel execution without conflicts:
+Hierarchical workspace structure for parallel execution and staged review:
+
+```
+main (default workspace)
+  └── mission workspace (strike-add-dark-mode)
+        ├── task-1 workspace → squash into mission after task review
+        ├── task-2 workspace → squash into mission after task review
+        └── task-3 workspace → squash into mission after task review
+
+      [all tasks squashed into mission workspace]
+
+      feature-level review
+
+      squash mission into main → create PR
+```
 
 **Workspace Structure:**
-- Task workspaces: `.strike/workspaces/<mission>/<task>/`
-- Mission-level workspace/revision exists for final changes
-- Each Coder creates commits in their task workspace
+- Mission workspace: `.strike/workspaces/<mission>/` (branches off main)
+- Task workspaces: `.strike/workspaces/<mission>/task-<id>/` (branches off mission)
 
-**Workflow:**
-1. Coder completes task and creates commit in task workspace
-2. Review squad evaluates the individual task commit (not squashed)
-3. If review passes, Coder proposes squashing task commits into mission revision
-4. Daemon handles workspace lifecycle (creation and disposal)
+**Two Review Stages:**
+1. **Task review** - After each Coder completes, review squad checks that task's commit before squashing into mission workspace
+2. **Feature review** - After all tasks squashed into mission workspace, review the whole feature before squashing into main
+
+**jj Functions Needed:**
+- `createMissionWorkspace(projectRoot, missionId)` - Create mission workspace off main
+- `createTaskWorkspace(projectRoot, missionId, taskId)` - Create task workspace off mission (update existing)
+- `squashTaskIntoMission(projectRoot, missionId, taskId)` - Squash task commit into mission workspace
+- `squashMissionIntoMain(projectRoot, missionId)` - Final squash for PR, cleanup all workspaces
+
+**`approve pr` Automation:**
+1. Squash mission workspace commit into main
+2. Run `jj workspace forget` on mission + all task workspaces
+3. Delete `.strike/workspaces/<mission>/` directory
+4. Create GitHub PR via `gh pr create`
 
 **Open Questions (TBD):**
-- What happens if review fails? (rollback strategy, retry mechanism)
+- What happens if task review fails? (rollback strategy, retry mechanism)
+- What happens if feature review fails? (reopen tasks, reassign)
 - Review squad implementation details (spawning, parallelization, verdict aggregation)
+- Conflict detection when squashing (what if task-1 and task-2 touch same file?)
 
 ### 📋 Not Started
 
@@ -117,9 +142,11 @@ src/
 ├── daemon.pid             # Daemon process ID
 ├── daemon.log             # Daemon logs
 ├── daemon.json            # Active agents state
-├── workspaces/            # jj workspaces for parallel Coder execution
-│   └── <mission-slug>/
-│       └── task-<id>/     # Each task gets its own workspace
+├── workspaces/            # jj workspaces (hierarchical)
+│   └── <mission-slug>/    # Mission workspace (branches off main)
+│       ├── task-1/        # Task workspace (branches off mission)
+│       ├── task-2/
+│       └── task-3/
 └── missions/
     └── <mission-slug>/
         ├── mission.json   # Mission metadata and status
