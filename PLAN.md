@@ -37,6 +37,10 @@
 
 ### 🚧 In Progress / Next Up
 
+**Phase 5: jj Integration (Advanced)**
+- [ ] Squash/rebase workflow
+- [ ] Conflict detection
+
 **Phase 2: Agents**
 - [ ] Review squad (5 specialized reviewers)
 
@@ -46,9 +50,24 @@
 - [ ] Review spawning when Coder completes
 - [ ] Concurrency limiting for Coders
 
-**Phase 5: jj Integration (Advanced)**
-- [ ] Squash/rebase workflow
-- [ ] Conflict detection
+#### jj Workspace Model
+
+Each Coder works in its own isolated jj workspace to enable parallel execution without conflicts:
+
+**Workspace Structure:**
+- Task workspaces: `.strike/workspaces/<mission>/<task>/`
+- Mission-level workspace/revision exists for final changes
+- Each Coder creates commits in their task workspace
+
+**Workflow:**
+1. Coder completes task and creates commit in task workspace
+2. Review squad evaluates the individual task commit (not squashed)
+3. If review passes, Coder proposes squashing task commits into mission revision
+4. Daemon handles workspace lifecycle (creation and disposal)
+
+**Open Questions (TBD):**
+- What happens if review fails? (rollback strategy, retry mechanism)
+- Review squad implementation details (spawning, parallelization, verdict aggregation)
 
 ### 📋 Not Started
 
@@ -219,8 +238,10 @@ strike approve pr add-dark-mode
 │   - Works in: .strike/workspaces/add-dark-mode/task-1/                  │
 │   - Reads spec.md, architecture.md, their task from tasks.json          │
 │   - Writes code, runs tests                                             │
-│   - When done: marks task status "done" in tasks.json                   │
 │   - Creates jj commit with task description                             │
+│   - Review squad evaluates the task commit (TBD: review failure flow)   │
+│   - If review passes: task commits are squashed into mission revision   │
+│   - Marks task status "done" in tasks.json                              │
 │                                                                         │
 │ When ALL tasks are "done":                                              │
 │   - Daemon sets status: review                                          │
@@ -266,8 +287,8 @@ Chat features:
 ## Next Steps (Priority Order)
 
 1. **Test chat command with real API** - Verify the SDK integration works
-2. **Add review squad** - 5 specialized reviewers for code quality
-3. **jj integration** - Worktrees and commit management
+2. **jj integration** - Squash/rebase workflow and conflict detection
+3. **Add review squad** - 5 specialized reviewers for code quality
 4. **Heartbeat/resurrection** - Keep PM/Tech Lead alive across sessions
 5. **PR creation** - Automate PR creation via `gh` CLI
 
