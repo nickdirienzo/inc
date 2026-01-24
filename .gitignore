@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Strike local state (keep missions tracked in git, but not workspaces or daemon state)
+.strike/
+.strike/workspaces/
+.strike/daemon.pid
+.strike/daemon.log
+.strike/daemon.json
+
+# OS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment
+.env
+.env.local
