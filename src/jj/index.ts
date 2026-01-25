@@ -93,6 +93,20 @@ export function getTaskWorkspacePath(
   return join(getWorkspacesDir(projectRoot, epicId), `task-${taskId}`);
 }
 
+async function isValidJjWorkspace(workspacePath: string, workspaceName: string, projectRoot: string): Promise<boolean> {
+  const workspaces = await listWorkspaces(projectRoot);
+  const exists = workspaces.some((ws) => ws.name === workspaceName);
+  if (!exists) {
+    return false;
+  }
+  try {
+    await access(workspacePath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function createEpicWorkspace(
   projectRoot: string,
   epicId: string
@@ -103,11 +117,8 @@ export async function createEpicWorkspace(
   const workspacesBaseDir = join(projectRoot, ".inc", "workspaces");
   await mkdir(workspacesBaseDir, { recursive: true });
 
-  try {
-    await access(workspacePath);
+  if (await isValidJjWorkspace(workspacePath, workspaceName, projectRoot)) {
     return { success: true, workspacePath };
-  } catch {
-    // Doesn't exist, create it
   }
 
   const result = await runJj(
@@ -137,11 +148,8 @@ export async function createTaskWorkspace(
   const workspacesDir = getWorkspacesDir(projectRoot, epicId);
   await mkdir(workspacesDir, { recursive: true });
 
-  try {
-    await access(workspacePath);
+  if (await isValidJjWorkspace(workspacePath, workspaceName, projectRoot)) {
     return { success: true, workspacePath };
-  } catch {
-    // Doesn't exist, create it
   }
 
   const result = await runJj(
