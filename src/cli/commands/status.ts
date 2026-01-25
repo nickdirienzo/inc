@@ -107,7 +107,15 @@ export const statusCommand = new Command("status")
         console.log(`  Updated: ${epic.updated_at}`);
 
         if (epic.needs_attention) {
-          console.log(`  ⚠️  Needs attention from ${epic.needs_attention.from}: ${epic.needs_attention.question}`);
+          const { from, to, question, escalation_count } = epic.needs_attention;
+          const toTarget = to || "user"; // backward compatibility
+
+          if (toTarget === "user") {
+            console.log(`  ⚠️  Needs attention from ${from}: ${question}`);
+          } else {
+            const escalationInfo = escalation_count ? ` (escalation #${escalation_count})` : "";
+            console.log(`  ⏳  Waiting for ${toTarget} to respond to ${from}${escalationInfo}: ${question}`);
+          }
         }
 
         if (epic.pr_number) {

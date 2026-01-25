@@ -29,6 +29,9 @@ export const approveCommand = new Command("approve")
           }
           newStatus = "plan_in_progress";
           message = "Spec approved. Tech Lead will now create the architecture plan.";
+          // Clear needs_attention in case PM set it expecting EM auto-approval
+          // This provides backward compatibility during transition to agent-driven approval
+          epic.needs_attention = undefined;
           break;
 
         case "plan":
