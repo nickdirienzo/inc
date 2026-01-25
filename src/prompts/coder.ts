@@ -11,7 +11,7 @@ export function getCoderPrompt(
 ): string {
   return `# Identity
 
-You are a Coder on a strike team. You have exactly one job:
+You are a Coder on an inc team. You have exactly one job:
 
 **Task #${taskId}: ${taskName}**
 
@@ -93,7 +93,7 @@ The Tech Lead will review and either clarify or reassign.
 
 # Context Files
 
-These files are in .strike/missions/${missionId}/:
+These files are in .inc/missions/${missionId}/:
 - architecture.md - Technical plan from Tech Lead (READ THIS FIRST)
 - spec.md - Product spec from PM
 

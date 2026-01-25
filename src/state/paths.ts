@@ -1,18 +1,18 @@
 /**
- * Path utilities for Strike state management
+ * Path utilities for Inc state management
  */
 
 import { join } from "node:path";
 
-const STRIKE_DIR = ".strike";
+const INC_DIR = ".inc";
 const MISSIONS_DIR = "missions";
 
-export function getStrikeDir(projectRoot: string): string {
-  return join(projectRoot, STRIKE_DIR);
+export function getIncDir(projectRoot: string): string {
+  return join(projectRoot, INC_DIR);
 }
 
 export function getMissionsDir(projectRoot: string): string {
-  return join(getStrikeDir(projectRoot), MISSIONS_DIR);
+  return join(getIncDir(projectRoot), MISSIONS_DIR);
 }
 
 export function getMissionDir(projectRoot: string, missionId: string): string {
@@ -40,15 +40,15 @@ export function getDecisionsPath(projectRoot: string, missionId: string): string
 }
 
 export function getDaemonPidPath(projectRoot: string): string {
-  return join(getStrikeDir(projectRoot), "daemon.pid");
+  return join(getIncDir(projectRoot), "daemon.pid");
 }
 
 export function getDaemonLogPath(projectRoot: string): string {
-  return join(getStrikeDir(projectRoot), "daemon.log");
+  return join(getIncDir(projectRoot), "daemon.log");
 }
 
 export function getDaemonStatePath(projectRoot: string): string {
-  return join(getStrikeDir(projectRoot), "daemon.json");
+  return join(getIncDir(projectRoot), "daemon.json");
 }
 
 export function getChatsDir(projectRoot: string, missionId: string): string {

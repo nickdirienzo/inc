@@ -1,5 +1,5 @@
 /**
- * Strike CLI tools for use in chat
+ * Inc CLI tools for use in chat
  *
  * These functions wrap CLI commands so agents can execute them
  * via natural language in the chat interface.
@@ -7,7 +7,7 @@
 
 import {
   createMission,
-  initStrikeDir,
+  initIncDir,
   listMissions,
   readMission,
   writeMission,
@@ -18,17 +18,17 @@ import {
 import { registerMission, listRegisteredMissions, searchMissions } from "../../registry/index.js";
 
 /**
- * List all known Strike projects/missions globally
+ * List all known Inc projects/missions globally
  * Use this when the user is ambiguous about which project they mean
  */
-export async function strikeListProjects(): Promise<string> {
+export async function incListProjects(): Promise<string> {
   const allMissions = await listRegisteredMissions();
 
   if (allMissions.length === 0) {
-    return "No Strike projects found. Create one with 'strike new \"your mission\"'";
+    return "No Inc projects found. Create one with 'inc new \"your mission\"'";
   }
 
-  const lines: string[] = ["Known Strike projects:\n"];
+  const lines: string[] = ["Known Inc projects:\n"];
 
   // Group by project path
   const byProject = new Map<string, typeof allMissions>();
@@ -58,7 +58,7 @@ export async function strikeListProjects(): Promise<string> {
 /**
  * Search for a mission by partial name or description
  */
-export async function strikeSearchMissions(query: string): Promise<string> {
+export async function incSearchMissions(query: string): Promise<string> {
   const matches = await searchMissions(query);
 
   if (matches.length === 0) {
@@ -88,7 +88,7 @@ export async function strikeSearchMissions(query: string): Promise<string> {
 /**
  * Create a new mission
  */
-export async function strikeNew(
+export async function incNew(
   projectRoot: string,
   description: string
 ): Promise<string> {
@@ -100,17 +100,17 @@ export async function strikeNew(
     .replace(/^-|-$/g, "")
     .slice(0, 50);
 
-  await initStrikeDir(projectRoot);
+  await initIncDir(projectRoot);
   const mission = await createMission(projectRoot, id, description);
   await registerMission(mission.id, projectRoot, description);
 
-  return `Created mission: ${mission.id}\nStatus: ${mission.status}\nPath: .strike/missions/${mission.id}/\n\nNext: run 'strike chat ${mission.id}' to start working with the PM`;
+  return `Created mission: ${mission.id}\nStatus: ${mission.status}\nPath: .inc/missions/${mission.id}/\n\nNext: run 'inc chat ${mission.id}' to start working with the PM`;
 }
 
 /**
  * Get status of missions
  */
-export async function strikeStatus(
+export async function incStatus(
   projectRoot: string,
   missionId?: string,
   global?: boolean
@@ -121,10 +121,10 @@ export async function strikeStatus(
   if (global && !missionId) {
     const allMissions = await listRegisteredMissions();
     if (allMissions.length === 0) {
-      return "No missions registered globally. Create missions with 'strike new \"your mission\"'";
+      return "No missions registered globally. Create missions with 'inc new \"your mission\"'";
     }
 
-    lines.push("All Strike missions:\n");
+    lines.push("All Inc missions:\n");
     for (const entry of allMissions) {
       const mission = await readMission(entry.projectPath, entry.missionId);
       const status = mission?.status ?? "unknown";
@@ -205,7 +205,7 @@ export async function strikeStatus(
     const missionIds = await listMissions(projectRoot);
 
     if (missionIds.length === 0) {
-      lines.push("No missions found. Run 'strike new \"your mission\"' to create one.");
+      lines.push("No missions found. Run 'inc new \"your mission\"' to create one.");
     } else {
       lines.push("Missions:");
       for (const id of missionIds) {
@@ -224,7 +224,7 @@ export async function strikeStatus(
 /**
  * Approve spec, plan, or PR
  */
-export async function strikeApprove(
+export async function incApprove(
   projectRoot: string,
   type: "spec" | "plan" | "pr",
   missionId: string
@@ -301,10 +301,10 @@ function getTaskStatusIcon(status: string): string {
 /**
  * Tool definitions for the agent SDK
  */
-export const strikeToolDefinitions = [
+export const incToolDefinitions = [
   {
-    name: "strike_list_projects",
-    description: "List all known Strike projects and missions globally. Use this when you need to see what projects exist or when the user is ambiguous about which project they mean.",
+    name: "inc_list_projects",
+    description: "List all known Inc projects and missions globally. Use this when you need to see what projects exist or when the user is ambiguous about which project they mean.",
     input_schema: {
       type: "object" as const,
       properties: {},
@@ -312,7 +312,7 @@ export const strikeToolDefinitions = [
     },
   },
   {
-    name: "strike_search",
+    name: "inc_search",
     description: "Search for a mission by partial name or description. Use this to disambiguate when the user mentions something that could match multiple missions.",
     input_schema: {
       type: "object" as const,
@@ -326,8 +326,8 @@ export const strikeToolDefinitions = [
     },
   },
   {
-    name: "strike_new",
-    description: "Create a new Strike mission. Use this when the user wants to create a new project, feature, or task to work on.",
+    name: "inc_new",
+    description: "Create a new Inc mission. Use this when the user wants to create a new project, feature, or task to work on.",
     input_schema: {
       type: "object" as const,
       properties: {
@@ -340,8 +340,8 @@ export const strikeToolDefinitions = [
     },
   },
   {
-    name: "strike_status",
-    description: "Show status of Strike missions. Use this to check on mission progress, see tasks, or list all missions.",
+    name: "inc_status",
+    description: "Show status of Inc missions. Use this to check on mission progress, see tasks, or list all missions.",
     input_schema: {
       type: "object" as const,
       properties: {
@@ -358,7 +358,7 @@ export const strikeToolDefinitions = [
     },
   },
   {
-    name: "strike_approve",
+    name: "inc_approve",
     description: "Approve a spec, plan, or PR for a mission. Use this when the user wants to move the mission forward to the next phase.",
     input_schema: {
       type: "object" as const,
@@ -381,36 +381,36 @@ export const strikeToolDefinitions = [
 /**
  * Execute a Strike tool by name
  */
-export async function executeStrikeTool(
+export async function executeIncTool(
   toolName: string,
   input: Record<string, unknown>,
   projectRoot: string
 ): Promise<string> {
   switch (toolName) {
-    case "strike_list_projects":
-      return strikeListProjects();
+    case "inc_list_projects":
+      return incListProjects();
 
-    case "strike_search":
-      return strikeSearchMissions(input.query as string);
+    case "inc_search":
+      return incSearchMissions(input.query as string);
 
-    case "strike_new":
-      return strikeNew(projectRoot, input.description as string);
+    case "inc_new":
+      return incNew(projectRoot, input.description as string);
 
-    case "strike_status":
-      return strikeStatus(
+    case "inc_status":
+      return incStatus(
         projectRoot,
         input.mission_id as string | undefined,
         input.global as boolean | undefined
       );
 
-    case "strike_approve":
-      return strikeApprove(
+    case "inc_approve":
+      return incApprove(
         projectRoot,
         input.type as "spec" | "plan" | "pr",
         input.mission_id as string
       );
 
     default:
-      return `Unknown Strike tool: ${toolName}`;
+      return `Unknown Inc tool: ${toolName}`;
   }
 }

@@ -4,12 +4,9 @@ node_modules/
 # Build output
 dist/
 
-# Strike local state (keep missions tracked in git, but not workspaces or daemon state)
+# Inc local state
+.inc/
 .strike/
-.strike/workspaces/
-.strike/daemon.pid
-.strike/daemon.log
-.strike/daemon.json
 
 # OS
 .DS_Store
@@ -27,5 +24,3 @@ npm-debug.log*
 # Environment
 .env
 .env.local
-
-.strike/

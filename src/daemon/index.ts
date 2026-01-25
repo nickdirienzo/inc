@@ -1,5 +1,5 @@
 /**
- * Strike Daemon
+ * Inc Daemon
  *
  * Watches for state changes and spawns agents as needed.
  */
@@ -272,7 +272,7 @@ async function spawnCoderAgent(mission: Mission, task: Task): Promise<void> {
     if (useJjWorkspace) {
       await describeCommit(
         workspacePath,
-        `[strike] Task ${task.id}: ${task.name}\n\nMission: ${mission.id}\n\n${result}`
+        `[inc] Task ${task.id}: ${task.name}\n\nMission: ${mission.id}\n\n${result}`
       );
     }
 
@@ -480,7 +480,7 @@ async function checkAndSpawnAgents(): Promise<void> {
 }
 
 async function main(): Promise<void> {
-  log(`Strike daemon starting in ${projectRoot}`);
+  log(`Inc daemon starting in ${projectRoot}`);
 
   // Initial EM run
   await runEngineeringManager();

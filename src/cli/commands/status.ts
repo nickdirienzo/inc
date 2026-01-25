@@ -15,7 +15,7 @@ export const statusCommand = new Command("status")
       if (options.global && !missionId) {
         const allMissions = await listRegisteredMissions();
         if (allMissions.length === 0) {
-          console.log("No missions registered globally. Create missions with 'strike new \"your mission\"'");
+          console.log("No missions registered globally. Create missions with 'inc new \"your mission\"'");
           return;
         }
 
@@ -33,7 +33,7 @@ export const statusCommand = new Command("status")
           return;
         }
 
-        console.log("All Strike missions:\n");
+        console.log("All Inc missions:\n");
         for (const { entry, mission } of filteredMissions) {
           const status = mission?.status ?? "unknown";
           const attention = mission?.needs_attention ? " ⚠️" : "";
@@ -127,7 +127,7 @@ export const statusCommand = new Command("status")
         const missionIds = await listMissions(projectRoot);
 
         if (missionIds.length === 0) {
-          console.log("No missions found. Run 'strike new \"your mission\"' to create one.");
+          console.log("No missions found. Run 'inc new \"your mission\"' to create one.");
           return;
         }
 

@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { createMission, initStrikeDir } from "../../state/index.js";
+import { createMission, initIncDir } from "../../state/index.js";
 import { registerMission } from "../../registry/index.js";
 import { readFile, writeFile, unlink } from "node:fs/promises";
 import { spawn } from "node:child_process";
@@ -22,7 +22,7 @@ function slugify(text: string): string {
  */
 async function openEditor(): Promise<string> {
   const editor = process.env.EDITOR || process.env.VISUAL || "vi";
-  const tempFile = join(tmpdir(), `strike-mission-${Date.now()}.md`);
+  const tempFile = join(tmpdir(), `inc-mission-${Date.now()}.md`);
 
   // Write template to temp file
   const template = `# Mission Brief
@@ -108,7 +108,7 @@ export const newCommand = new Command("new")
       }
 
       // Ensure .strike directory exists
-      await initStrikeDir(projectRoot);
+      await initIncDir(projectRoot);
 
       // Generate slug from first line of description
       const id = slugify(brief);
@@ -120,9 +120,9 @@ export const newCommand = new Command("new")
 
       console.log(`Created mission: ${mission.id}`);
       console.log(`  Status: ${mission.status}`);
-      console.log(`  Path: .strike/missions/${mission.id}/`);
+      console.log(`  Path: .inc/missions/${mission.id}/`);
       console.log("");
-      console.log(`Next: run 'strike chat ${mission.id}' to start working with the PM`);
+      console.log(`Next: run 'inc chat ${mission.id}' to start working with the PM`);
     } catch (error) {
       console.error("Failed to create mission:", error);
       process.exit(1);

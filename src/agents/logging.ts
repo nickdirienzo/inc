@@ -19,7 +19,7 @@ export class AgentLogger {
     private role: string,
     private taskId?: number
   ) {
-    const logsDir = join(projectRoot, ".strike", "missions", missionId, "logs");
+    const logsDir = join(projectRoot, ".inc", "missions", missionId, "logs");
     const filename = taskId !== undefined ? `${role}-task-${taskId}.jsonl` : `${role}.jsonl`;
     this.logPath = join(logsDir, filename);
   }
@@ -53,7 +53,7 @@ export class AgentLogger {
     if (entries.length === 0) return;
 
     try {
-      await mkdir(join(this.projectRoot, ".strike", "missions", this.missionId, "logs"), {
+      await mkdir(join(this.projectRoot, ".inc", "missions", this.missionId, "logs"), {
         recursive: true,
       });
 

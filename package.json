@@ -1,10 +1,10 @@
 {
-  "name": "strike",
+  "name": "inc",
   "version": "1.0.0",
-  "description": "Agent orchestration for small teams",
+  "description": "An experiment with Claude Code orchestration",
   "main": "dist/cli/index.js",
   "bin": {
-    "strike": "./dist/cli/index.js"
+    "inc": "./dist/cli/index.js"
   },
   "scripts": {
     "build": "tsc",
