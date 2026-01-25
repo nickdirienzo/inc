@@ -3,7 +3,7 @@
  *
  * Inc uses jj workspaces to give each Coder agent their own isolated
  * working directory. This prevents conflicts when multiple Coders work
- * in parallel.
+ * in parallel on epics.
  */
 
 import { spawn } from "node:child_process";
@@ -74,31 +74,31 @@ export async function isJjRepo(cwd: string): Promise<boolean> {
   return root !== null;
 }
 
-export function getWorkspacesDir(projectRoot: string, missionId: string): string {
-  return join(projectRoot, ".inc", "workspaces", missionId);
+export function getWorkspacesDir(projectRoot: string, epicId: string): string {
+  return join(projectRoot, ".inc", "workspaces", epicId);
 }
 
-export function getMissionWorkspacePath(
+export function getEpicWorkspacePath(
   projectRoot: string,
-  missionId: string
+  epicId: string
 ): string {
-  return getWorkspacesDir(projectRoot, missionId);
+  return getWorkspacesDir(projectRoot, epicId);
 }
 
 export function getTaskWorkspacePath(
   projectRoot: string,
-  missionId: string,
+  epicId: string,
   taskId: number
 ): string {
-  return join(getWorkspacesDir(projectRoot, missionId), `task-${taskId}`);
+  return join(getWorkspacesDir(projectRoot, epicId), `task-${taskId}`);
 }
 
-export async function createMissionWorkspace(
+export async function createEpicWorkspace(
   projectRoot: string,
-  missionId: string
+  epicId: string
 ): Promise<{ success: boolean; workspacePath: string; error?: string }> {
-  const workspacePath = getMissionWorkspacePath(projectRoot, missionId);
-  const workspaceName = `inc-${missionId}`;
+  const workspacePath = getEpicWorkspacePath(projectRoot, epicId);
+  const workspaceName = `inc-${epicId}`;
 
   const workspacesBaseDir = join(projectRoot, ".inc", "workspaces");
   await mkdir(workspacesBaseDir, { recursive: true });
@@ -128,13 +128,13 @@ export async function createMissionWorkspace(
 
 export async function createTaskWorkspace(
   projectRoot: string,
-  missionId: string,
+  epicId: string,
   taskId: number
 ): Promise<{ success: boolean; workspacePath: string; error?: string }> {
-  const workspacePath = getTaskWorkspacePath(projectRoot, missionId, taskId);
-  const workspaceName = `inc-${missionId}-task-${taskId}`;
+  const workspacePath = getTaskWorkspacePath(projectRoot, epicId, taskId);
+  const workspaceName = `inc-${epicId}-task-${taskId}`;
 
-  const workspacesDir = getWorkspacesDir(projectRoot, missionId);
+  const workspacesDir = getWorkspacesDir(projectRoot, epicId);
   await mkdir(workspacesDir, { recursive: true });
 
   try {
@@ -145,7 +145,7 @@ export async function createTaskWorkspace(
   }
 
   const result = await runJj(
-    ["workspace", "add", "--name", workspaceName, "-r", `inc-${missionId}@`, workspacePath],
+    ["workspace", "add", "--name", workspaceName, "-r", `inc-${epicId}@`, workspacePath],
     { cwd: projectRoot }
   );
 
@@ -162,11 +162,11 @@ export async function createTaskWorkspace(
 
 export async function deleteTaskWorkspace(
   projectRoot: string,
-  missionId: string,
+  epicId: string,
   taskId: number
 ): Promise<{ success: boolean; error?: string }> {
-  const workspacePath = getTaskWorkspacePath(projectRoot, missionId, taskId);
-  const workspaceName = `inc-${missionId}-task-${taskId}`;
+  const workspacePath = getTaskWorkspacePath(projectRoot, epicId, taskId);
+  const workspaceName = `inc-${epicId}-task-${taskId}`;
 
   await runJj(["workspace", "forget", workspaceName], {
     cwd: projectRoot,
@@ -250,23 +250,23 @@ export async function squashCommit(
   };
 }
 
-export async function squashTaskIntoMission(
+export async function squashTaskIntoEpic(
   projectRoot: string,
-  missionId: string,
+  epicId: string,
   taskId: number
 ): Promise<{ success: boolean; error?: string }> {
-  const taskWorkspace = `inc-${missionId}-task-${taskId}@`;
-  const missionWorkspace = `inc-${missionId}@`;
+  const taskWorkspace = `inc-${epicId}-task-${taskId}@`;
+  const epicWorkspace = `inc-${epicId}@`;
 
   const rebaseResult = await runJj(
-    ["rebase", "-r", taskWorkspace, "-d", missionWorkspace],
+    ["rebase", "-r", taskWorkspace, "-d", epicWorkspace],
     { cwd: projectRoot }
   );
 
   if (!rebaseResult.success) {
     return {
       success: false,
-      error: `Failed to rebase task onto mission: ${rebaseResult.stderr}`,
+      error: `Failed to rebase task onto epic: ${rebaseResult.stderr}`,
     };
   }
 
@@ -286,12 +286,12 @@ export async function squashTaskIntoMission(
   return { success: true };
 }
 
-export async function squashAllTasksIntoMission(
+export async function squashAllTasksIntoEpic(
   projectRoot: string,
-  missionId: string
+  epicId: string
 ): Promise<{ success: boolean; error?: string }> {
   const workspaces = await listWorkspaces(projectRoot);
-  const taskPrefix = `inc-${missionId}-task-`;
+  const taskPrefix = `inc-${epicId}-task-`;
 
   const taskWorkspaces = workspaces
     .filter((ws) => ws.name.startsWith(taskPrefix))
@@ -303,7 +303,7 @@ export async function squashAllTasksIntoMission(
     .sort((a, b) => a.taskId - b.taskId);
 
   for (const taskWs of taskWorkspaces) {
-    const result = await squashTaskIntoMission(projectRoot, missionId, taskWs.taskId);
+    const result = await squashTaskIntoEpic(projectRoot, epicId, taskWs.taskId);
     if (!result.success) {
       return {
         success: false,
@@ -315,52 +315,52 @@ export async function squashAllTasksIntoMission(
   return { success: true };
 }
 
-export async function squashMissionIntoMain(
+export async function squashEpicIntoMain(
   projectRoot: string,
-  missionId: string
+  epicId: string
 ): Promise<{ success: boolean; error?: string }> {
-  const tasksResult = await squashAllTasksIntoMission(projectRoot, missionId);
+  const tasksResult = await squashAllTasksIntoEpic(projectRoot, epicId);
   if (!tasksResult.success) {
     return tasksResult;
   }
 
-  const missionWorkspace = `inc-${missionId}@`;
+  const epicWorkspace = `inc-${epicId}@`;
 
   const logResult = await runJj(
-    ["log", "-r", missionWorkspace, "--no-graph", "-T", "description"],
+    ["log", "-r", epicWorkspace, "--no-graph", "-T", "description"],
     { cwd: projectRoot }
   );
-  const missionDescription = logResult.success && logResult.stdout.trim()
+  const epicDescription = logResult.success && logResult.stdout.trim()
     ? logResult.stdout.trim()
-    : `feat: ${missionId}`;
+    : `feat: ${epicId}`;
 
-  // Rebase mission onto @- (the parent of the default workspace's working copy)
-  // This puts the mission changes at the tip of the current branch
+  // Rebase epic onto @- (the parent of the default workspace's working copy)
+  // This puts the epic changes at the tip of the current branch
   const rebaseResult = await runJj(
-    ["rebase", "-r", missionWorkspace, "-d", "@-"],
+    ["rebase", "-r", epicWorkspace, "-d", "@-"],
     { cwd: projectRoot }
   );
 
   if (!rebaseResult.success) {
     return {
       success: false,
-      error: `Failed to rebase mission onto HEAD: ${rebaseResult.stderr}`,
+      error: `Failed to rebase epic onto HEAD: ${rebaseResult.stderr}`,
     };
   }
 
   const squashResult = await runJj(
-    ["squash", "-r", missionWorkspace, "-m", missionDescription],
+    ["squash", "-r", epicWorkspace, "-m", epicDescription],
     { cwd: projectRoot }
   );
 
   if (!squashResult.success) {
     return {
       success: false,
-      error: `Failed to squash mission: ${squashResult.stderr}`,
+      error: `Failed to squash epic: ${squashResult.stderr}`,
     };
   }
 
-  await runJj(["abandon", missionWorkspace], { cwd: projectRoot });
+  await runJj(["abandon", epicWorkspace], { cwd: projectRoot });
   return { success: true };
 }
 
@@ -400,27 +400,27 @@ export async function hasChanges(workspacePath: string): Promise<boolean> {
   return result.success && result.stdout.length > 0;
 }
 
-export async function cleanupMissionWorkspaces(
+export async function cleanupEpicWorkspaces(
   projectRoot: string,
-  missionId: string
+  epicId: string
 ): Promise<{ success: boolean; error?: string }> {
   const workspaces = await listWorkspaces(projectRoot);
 
-  const missionWorkspaceName = `inc-${missionId}`;
-  const taskWorkspacePrefix = `inc-${missionId}-task-`;
+  const epicWorkspaceName = `inc-${epicId}`;
+  const taskWorkspacePrefix = `inc-${epicId}-task-`;
 
-  const missionWorkspaces = workspaces.filter(
-    (ws) => ws.name === missionWorkspaceName || ws.name.startsWith(taskWorkspacePrefix)
+  const epicWorkspaces = workspaces.filter(
+    (ws) => ws.name === epicWorkspaceName || ws.name.startsWith(taskWorkspacePrefix)
   );
 
-  for (const workspace of missionWorkspaces) {
+  for (const workspace of epicWorkspaces) {
     await runJj(["abandon", `${workspace.name}@`], { cwd: projectRoot });
     await runJj(["workspace", "forget", workspace.name], { cwd: projectRoot });
   }
 
-  const missionWorkspacePath = getMissionWorkspacePath(projectRoot, missionId);
+  const epicWorkspacePath = getEpicWorkspacePath(projectRoot, epicId);
   try {
-    await rm(missionWorkspacePath, { recursive: true, force: true });
+    await rm(epicWorkspacePath, { recursive: true, force: true });
   } catch {
     // Ignore if doesn't exist
   }

@@ -1,7 +1,7 @@
 /**
  * Global Inc Registry
  *
- * Maps mission slugs to their project paths, allowing `inc chat <mission>`
+ * Maps epic slugs to their project paths, allowing `inc chat <epic>`
  * to work from anywhere.
  *
  * Registry lives at ~/.inc/registry.json
@@ -12,7 +12,7 @@ import { join } from "node:path";
 import { homedir } from "node:os";
 
 export interface RegistryEntry {
-  missionId: string;
+  epicId: string;
   projectPath: string;
   description: string;
   createdAt: string;
@@ -21,7 +21,7 @@ export interface RegistryEntry {
 
 export interface Registry {
   version: 1;
-  entries: Record<string, RegistryEntry>; // keyed by missionId
+  entries: Record<string, RegistryEntry>; // keyed by epicId
 }
 
 /**
@@ -61,19 +61,19 @@ export async function writeRegistry(registry: Registry): Promise<void> {
 }
 
 /**
- * Register a mission in the global registry
+ * Register an epic in the global registry
  */
-export async function registerMission(
-  missionId: string,
+export async function registerEpic(
+  epicId: string,
   projectPath: string,
   description: string
 ): Promise<void> {
   const registry = await readRegistry();
   const now = new Date().toISOString();
 
-  const existing = registry.entries[missionId];
-  registry.entries[missionId] = {
-    missionId,
+  const existing = registry.entries[epicId];
+  registry.entries[epicId] = {
+    epicId,
     projectPath,
     description,
     createdAt: existing?.createdAt ?? now,
@@ -84,28 +84,28 @@ export async function registerMission(
 }
 
 /**
- * Unregister a mission from the global registry
+ * Unregister an epic from the global registry
  */
-export async function unregisterMission(missionId: string): Promise<void> {
+export async function unregisterEpic(epicId: string): Promise<void> {
   const registry = await readRegistry();
-  delete registry.entries[missionId];
+  delete registry.entries[epicId];
   await writeRegistry(registry);
 }
 
 /**
- * Look up a mission in the registry
+ * Look up an epic in the registry
  */
-export async function lookupMission(
-  missionId: string
+export async function lookupEpic(
+  epicId: string
 ): Promise<RegistryEntry | null> {
   const registry = await readRegistry();
-  return registry.entries[missionId] ?? null;
+  return registry.entries[epicId] ?? null;
 }
 
 /**
- * List all registered missions
+ * List all registered epics
  */
-export async function listRegisteredMissions(): Promise<RegistryEntry[]> {
+export async function listRegisteredEpics(): Promise<RegistryEntry[]> {
   const registry = await readRegistry();
   return Object.values(registry.entries).sort((a, b) =>
     b.updatedAt.localeCompare(a.updatedAt)
@@ -113,16 +113,16 @@ export async function listRegisteredMissions(): Promise<RegistryEntry[]> {
 }
 
 /**
- * Search for missions by partial match on missionId or description
+ * Search for epics by partial match on epicId or description
  */
-export async function searchMissions(query: string): Promise<RegistryEntry[]> {
+export async function searchEpics(query: string): Promise<RegistryEntry[]> {
   const registry = await readRegistry();
   const lowerQuery = query.toLowerCase();
 
   return Object.values(registry.entries)
     .filter(
       (entry) =>
-        entry.missionId.toLowerCase().includes(lowerQuery) ||
+        entry.epicId.toLowerCase().includes(lowerQuery) ||
         entry.description.toLowerCase().includes(lowerQuery)
     )
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));

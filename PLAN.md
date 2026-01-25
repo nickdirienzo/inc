@@ -6,9 +6,9 @@
 
 **Phase 1: Foundation**
 - [x] Project setup with TypeScript, `@anthropic-ai/claude-agent-sdk`, `commander`, `chokidar`
-- [x] State schema types (`Mission`, `Task`, `Decision`, `DaemonState`, `ActiveAgent`)
+- [x] State schema types (`Epic`, `Task`, `Decision`, `DaemonState`, `ActiveAgent`)
 - [x] File structure helpers (paths.ts, io.ts with read/write for all state files)
-- [x] Global registry (~/.inc/registry.json) for cross-project mission lookup
+- [x] Global registry (~/.inc/registry.json) for cross-project epic lookup
 
 **Phase 2: Agents**
 - [x] PM agent system prompt
@@ -18,10 +18,10 @@
 
 **Phase 3: CLI**
 - [x] `inc init` - Initialize .inc directory
-- [x] `inc new "<description>"` - Create mission with slug
-- [x] `inc status [mission-id]` - Show all missions or specific mission with tasks
-- [x] `inc status -g` - Show all missions across all projects
-- [x] `inc chat <mission-id> [-r role]` - Interactive chat with agents
+- [x] `inc new "<description>"` - Create epic with slug
+- [x] `inc status [epic-id]` - Show all epics or specific epic with tasks
+- [x] `inc status -g` - Show all epics across all projects
+- [x] `inc chat <epic-id> [-r role]` - Interactive chat with agents
 - [x] `inc approve <spec|plan|pr> <mission-id>` - Approve phase transitions
 - [x] `inc daemon start|stop|status|logs` - Daemon management
 
@@ -32,7 +32,7 @@
 - [x] Log file for daemon output
 
 **Phase 5: jj Integration (Basic)**
-- [x] Workspace creation per task (.inc/workspaces/<mission>/<task>/)
+- [x] Workspace creation per task (.inc/workspaces/<epic>/<task>/)
 - [x] Commit description with task info
 
 ### 🚧 In Progress / Next Up
@@ -56,36 +56,36 @@ Hierarchical workspace structure for parallel execution and staged review:
 
 ```
 main (default workspace)
-  └── mission workspace (inc-add-dark-mode)
-        ├── task-1 workspace → squash into mission after task review
-        ├── task-2 workspace → squash into mission after task review
-        └── task-3 workspace → squash into mission after task review
+  └── epic workspace (inc-add-dark-mode)
+        ├── task-1 workspace → squash into epic after task review
+        ├── task-2 workspace → squash into epic after task review
+        └── task-3 workspace → squash into epic after task review
 
-      [all tasks squashed into mission workspace]
+      [all tasks squashed into epic workspace]
 
       feature-level review
 
-      squash mission into main → create PR
+      squash epic into main → create PR
 ```
 
 **Workspace Structure:**
-- Mission workspace: `.inc/workspaces/<mission>/` (branches off main)
-- Task workspaces: `.inc/workspaces/<mission>/task-<id>/` (branches off mission)
+- Epic workspace: `.inc/workspaces/<epic>/` (branches off main)
+- Task workspaces: `.inc/workspaces/<epic>/task-<id>/` (branches off epic)
 
 **Two Review Stages:**
-1. **Task review** - After each Coder completes, review squad checks that task's commit before squashing into mission workspace
-2. **Feature review** - After all tasks squashed into mission workspace, review the whole feature before squashing into main
+1. **Task review** - After each Coder completes, review squad checks that task's commit before squashing into epic workspace
+2. **Feature review** - After all tasks squashed into epic workspace, review the whole feature before squashing into main
 
 **jj Functions Needed:**
-- `createMissionWorkspace(projectRoot, missionId)` - Create mission workspace off main
-- `createTaskWorkspace(projectRoot, missionId, taskId)` - Create task workspace off mission (update existing)
-- `squashTaskIntoMission(projectRoot, missionId, taskId)` - Squash task commit into mission workspace
-- `squashMissionIntoMain(projectRoot, missionId)` - Final squash for PR, cleanup all workspaces
+- `createEpicWorkspace(projectRoot, epicId)` - Create epic workspace off main
+- `createTaskWorkspace(projectRoot, epicId, taskId)` - Create task workspace off epic (update existing)
+- `squashTaskIntoEpic(projectRoot, epicId, taskId)` - Squash task commit into epic workspace
+- `squashEpicIntoMain(projectRoot, epicId)` - Final squash for PR, cleanup all workspaces
 
 **`approve pr` Automation:**
-1. Squash mission workspace commit into main
-2. Run `jj workspace forget` on mission + all task workspaces
-3. Delete `.inc/workspaces/<mission>/` directory
+1. Squash epic workspace commit into main
+2. Run `jj workspace forget` on epic + all task workspaces
+3. Delete `.inc/workspaces/<epic>/` directory
 4. Create GitHub PR via `gh pr create`
 
 **Open Questions (TBD):**
@@ -116,9 +116,9 @@ src/
 │   ├── index.ts           # Main CLI entry point (commander)
 │   └── commands/
 │       ├── init.ts        # Initialize .inc directory
-│       ├── new.ts         # Create new idea
+│       ├── new.ts         # Create new epic
 │       ├── chat.ts        # Interactive chat with agents
-│       ├── status.ts      # Show idea/task status
+│       ├── status.ts      # Show epic/task status
 │       ├── approve.ts     # Approve spec/plan/PR
 │       └── daemon.ts      # Start/stop/status/logs daemon
 ├── daemon/
@@ -143,29 +143,29 @@ src/
 ├── daemon.log             # Daemon logs
 ├── daemon.json            # Active agents state
 ├── workspaces/            # jj workspaces (hierarchical)
-│   └── <mission-slug>/    # Mission workspace (branches off main)
-│       ├── task-1/        # Task workspace (branches off mission)
+│   └── <epic-slug>/       # Epic workspace (branches off main)
+│       ├── task-1/        # Task workspace (branches off epic)
 │       ├── task-2/
 │       └── task-3/
-└── missions/
-    └── <mission-slug>/
-        ├── mission.json   # Mission metadata and status
+└── epics/
+    └── <epic-slug>/
+        ├── epic.json      # Epic metadata and status
         ├── spec.md        # Product spec (written by PM)
         ├── architecture.md # Technical plan (written by Tech Lead)
         ├── tasks.json     # Task breakdown (written by Tech Lead)
         └── decisions.md   # Decision log (all agents)
 
 ~/.inc/
-└── registry.json          # Global index of all missions across projects
+└── registry.json          # Global index of all epics across projects
 ```
 
 ## Quick Start
 
 ```bash
-# 1. Start the daemon (watches for missions and spawns agents)
+# 1. Start the daemon (watches for epics and spawns agents)
 inc daemon start
 
-# 2. Create a mission
+# 2. Create an epic
 inc new "add dark mode support"
 # Or for a detailed brief:
 inc new --file brief.md
@@ -176,9 +176,9 @@ inc new
 inc daemon logs -f
 
 # 4. Check status anytime
-inc status                    # Current project missions
-inc status -g                 # All missions across projects
-inc status add-dark-mode      # Specific mission details
+inc status                    # Current project epics
+inc status -g                 # All epics across projects
+inc status add-dark-mode      # Specific epic details
 
 # 5. When PM finishes spec, approve to continue
 inc approve spec add-dark-mode
@@ -194,11 +194,11 @@ inc approve pr add-dark-mode
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│ 1. CREATE MISSION                                                       │
+│ 1. CREATE EPIC                                                          │
 ├─────────────────────────────────────────────────────────────────────────┤
 │ $ inc new "add dark mode"                                            │
 │                                                                         │
-│ Creates: .inc/missions/add-dark-mode/mission.json                    │
+│ Creates: .inc/epics/add-dark-mode/epic.json                           │
 │ Status:  new                                                            │
 │                                                                         │
 │ Daemon sees "new" → sets status to "spec_in_progress" → spawns PM       │
@@ -212,7 +212,7 @@ inc approve pr add-dark-mode
 │ (if blocked), otherwise writes spec.md                                  │
 │                                                                         │
 │ When done:                                                              │
-│   - Writes: .inc/missions/add-dark-mode/spec.md                      │
+│   - Writes: .inc/epics/add-dark-mode/spec.md                          │
 │   - Sets status: spec_complete                                          │
 │   - Sets needs_attention: { from: "pm", question: "please review" }     │
 │                                                                         │
@@ -262,7 +262,7 @@ inc approve pr add-dark-mode
 │ 6. CODER AGENTS WORK (PARALLEL)                                         │
 ├─────────────────────────────────────────────────────────────────────────┤
 │ Each Coder:                                                             │
-│   - Works in: .inc/workspaces/add-dark-mode/task-1/                  │
+│   - Works in: .inc/workspaces/add-dark-mode/task-1/                   │
 │   - Reads spec.md, architecture.md, their task from tasks.json          │
 │   - Writes code, runs tests                                             │
 │   - Creates jj commit with task description                             │
@@ -284,7 +284,7 @@ inc approve pr add-dark-mode
 │                                                                         │
 │ Sets status: done                                                       │
 │                                                                         │
-│ 🎉 Mission complete!                                                    │
+│ 🎉 Epic complete!                                                       │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -293,7 +293,7 @@ inc approve pr add-dark-mode
 You can also drive agents manually via chat instead of daemon:
 
 ```bash
-# Chat with PM about a mission
+# Chat with PM about an epic
 inc chat add-dark-mode -r pm
 
 # Chat with Tech Lead
@@ -306,7 +306,7 @@ inc chat add-dark-mode -r coder -t 1
 Chat features:
 - Multiline input: type lines, empty line to send
 - Animated spinner while thinking
-- Transcripts saved to `.inc/missions/<id>/chats/`
+- Transcripts saved to `.inc/epics/<id>/chats/`
 - Recent chat summaries loaded for context
 
 ---
@@ -325,11 +325,11 @@ Chat features:
 
 1. **Coder concurrency**: How many Coders run in parallel? Start with 2, tune based on conflict rate.
 
-2. **Context size**: Tech Lead might accumulate too much context over a long-running mission. May need periodic "compaction" where we summarize and restart.
+2. **Context size**: Tech Lead might accumulate too much context over a long-running epic. May need periodic "compaction" where we summarize and restart.
 
-3. **Cost tracking**: Should we track API spend per mission? Useful for understanding ROI.
+3. **Cost tracking**: Should we track API spend per epic? Useful for understanding ROI.
 
-4. **Rollback**: If a Coder produces bad code that passes tests, how do we recover? Tech Lead review should catch most issues, but might need `inc rollback <mission> <task-id>`.
+4. **Rollback**: If a Coder produces bad code that passes tests, how do we recover? Tech Lead review should catch most issues, but might need `inc rollback <epic> <task-id>`.
 
 5. **Human teammates**: How do PRs from Inc interact with PRs from human engineers? Probably fine — Inc PRs go through normal review process.
 
@@ -337,7 +337,7 @@ Chat features:
 
 ## Design Ideas (To Implement)
 
-### Mission Creation with Rich Context
+### Epic Creation with Rich Context
 
 Currently `inc new "description"` only takes a single line. Options:
 - `inc new` with no args opens $EDITOR for multiline brief
@@ -350,19 +350,19 @@ The chat experience needs rethinking:
 
 1. **Fresh sessions**: Each `inc chat` should be a net-new session, not resuming old context. The agent should read current state from files (mission.json, spec.md, etc.) rather than relying on conversation history.
 
-2. **Chat history with summaries**: Save recent chats to `.inc/missions/<id>/chats/` with auto-generated summaries. Agent can read summaries for quick context on what was discussed before.
+2. **Chat history with summaries**: Save recent chats to `.inc/epics/<id>/chats/` with auto-generated summaries. Agent can read summaries for quick context on what was discussed before.
 
 3. **Natural language as primary interface**: Chat should be able to do everything the CLI can (except spawn another chat):
-   - "create a new mission for adding dark mode" → runs `inc new`
+   - "create a new epic for adding dark mode" → runs `inc new`
    - "what's the status?" → runs `inc status`
    - "approve the spec" → runs `inc approve spec`
-   - "show me all my missions" → runs `inc status -g`
+   - "show me all my epics" → runs `inc status -g`
 
    This makes `inc chat` the main entry point. Other commands become shortcuts/scripting interface.
 
 4. **Conversation structure**:
    ```
-   .inc/missions/<id>/
+   .inc/epics/<id>/
    ├── chats/
    │   ├── 2024-01-24-1030.json   # Full transcript
    │   ├── 2024-01-24-1030.summary.md  # Auto-generated summary

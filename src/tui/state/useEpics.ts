@@ -1,72 +1,72 @@
 /**
- * Mission monitoring hook for TUI
+ * Epic monitoring hook for TUI
  *
- * Provides global mission visibility by:
+ * Provides global epic visibility by:
  * - Reading ~/.inc/registry.json
- * - Loading mission.json for each registry entry
+ * - Loading epic.json for each registry entry
  * - Watching for changes with chokidar
  * - Debouncing updates (300ms)
  */
 
 import { watch, FSWatcher } from "chokidar";
 import { readRegistry, getRegistryPath } from "../../registry/index.js";
-import { readMission, getMissionJsonPath } from "../../state/index.js";
-import type { MissionWithProject } from "./types.js";
+import { readEpic, getEpicJsonPath } from "../../state/index.js";
+import type { EpicWithProject } from "./types.js";
 
-export interface UseMissionsResult {
-  missions: MissionWithProject[];
-  needsAttention: MissionWithProject[];
+export interface UseEpicsResult {
+  epics: EpicWithProject[];
+  needsAttention: EpicWithProject[];
   loading: boolean;
 }
 
-export interface UseMissionsState {
-  missions: MissionWithProject[];
-  needsAttention: MissionWithProject[];
+export interface UseEpicsState {
+  epics: EpicWithProject[];
+  needsAttention: EpicWithProject[];
   loading: boolean;
   watchers: FSWatcher[];
   debounceTimer: NodeJS.Timeout | null;
 }
 
 /**
- * Load all missions from the registry
+ * Load all epics from the registry
  */
-async function loadMissions(): Promise<MissionWithProject[]> {
+async function loadEpics(): Promise<EpicWithProject[]> {
   const registry = await readRegistry();
-  const missions: MissionWithProject[] = [];
+  const epics: EpicWithProject[] = [];
 
   for (const entry of Object.values(registry.entries)) {
-    const mission = await readMission(entry.projectPath, entry.missionId);
-    if (mission) {
-      missions.push({
-        ...mission,
+    const epic = await readEpic(entry.projectPath, entry.epicId);
+    if (epic) {
+      epics.push({
+        ...epic,
         projectPath: entry.projectPath,
       });
     }
   }
 
-  return missions;
+  return epics;
 }
 
 /**
- * Filter missions that need attention
+ * Filter epics that need attention
  */
 function filterNeedsAttention(
-  missions: MissionWithProject[]
-): MissionWithProject[] {
-  return missions.filter((m) => m.needs_attention !== undefined);
+  epics: EpicWithProject[]
+): EpicWithProject[] {
+  return epics.filter((e) => e.needs_attention !== undefined);
 }
 
 /**
- * Create a mission monitoring instance
+ * Create an epic monitoring instance
  */
-export function createUseMissions(
-  onChange: (result: UseMissionsResult) => void
+export function createUseEpics(
+  onChange: (result: UseEpicsResult) => void
 ): {
   start: () => Promise<void>;
   stop: () => void;
 } {
-  const state: UseMissionsState = {
-    missions: [],
+  const state: UseEpicsState = {
+    epics: [],
     needsAttention: [],
     loading: true,
     watchers: [],
@@ -83,30 +83,30 @@ export function createUseMissions(
 
     state.debounceTimer = setTimeout(async () => {
       state.debounceTimer = null;
-      await updateMissions();
+      await updateEpics();
     }, 300);
   }
 
   /**
-   * Load missions and update state
+   * Load epics and update state
    */
-  async function updateMissions() {
+  async function updateEpics() {
     try {
-      const missions = await loadMissions();
-      state.missions = missions;
-      state.needsAttention = filterNeedsAttention(missions);
+      const epics = await loadEpics();
+      state.epics = epics;
+      state.needsAttention = filterNeedsAttention(epics);
       state.loading = false;
 
       onChange({
-        missions: state.missions,
+        epics: state.epics,
         needsAttention: state.needsAttention,
         loading: state.loading,
       });
     } catch (error) {
-      console.error("Error loading missions:", error);
+      console.error("Error loading epics:", error);
       state.loading = false;
       onChange({
-        missions: state.missions,
+        epics: state.epics,
         needsAttention: state.needsAttention,
         loading: state.loading,
       });
@@ -134,44 +134,44 @@ export function createUseMissions(
 
     state.watchers.push(registryWatcher);
 
-    // Watch all mission.json files
+    // Watch all epic.json files
     const registry = await readRegistry();
     for (const entry of Object.values(registry.entries)) {
-      const missionJsonPath = getMissionJsonPath(
+      const epicJsonPath = getEpicJsonPath(
         entry.projectPath,
-        entry.missionId
+        entry.epicId
       );
 
-      const missionWatcher = watch(missionJsonPath, {
+      const epicWatcher = watch(epicJsonPath, {
         ignoreInitial: true,
         persistent: true,
       });
 
-      missionWatcher.on("change", () => {
+      epicWatcher.on("change", () => {
         scheduleUpdate();
       });
 
-      missionWatcher.on("add", () => {
+      epicWatcher.on("add", () => {
         scheduleUpdate();
       });
 
-      state.watchers.push(missionWatcher);
+      state.watchers.push(epicWatcher);
     }
   }
 
   /**
-   * Start monitoring missions
+   * Start monitoring epics
    */
   async function start() {
     state.loading = true;
     onChange({
-      missions: [],
+      epics: [],
       needsAttention: [],
       loading: true,
     });
 
     // Initial load
-    await updateMissions();
+    await updateEpics();
 
     // Setup file watchers
     await setupWatchers();

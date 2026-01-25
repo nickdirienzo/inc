@@ -1,10 +1,10 @@
 import { Command } from "commander";
 import { createInterface } from "node:readline";
 import { query } from "@anthropic-ai/claude-agent-sdk";
-import { readMission, writeMission, getMissionDir, getChatsDir } from "../../state/index.js";
+import { readEpic, writeEpic, getEpicDir, getChatsDir } from "../../state/index.js";
 import { getPmPrompt, getTechLeadPrompt, getCoderPrompt } from "../../prompts/index.js";
 import { readTasks } from "../../state/index.js";
-import { lookupMission, searchMissions, listRegisteredMissions } from "../../registry/index.js";
+import { lookupEpic, searchEpics, listRegisteredEpics } from "../../registry/index.js";
 import { mkdir, readdir, writeFile, readFile } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -74,12 +74,12 @@ class Spinner {
 }
 
 /**
- * Build a summary of all known Strike projects for context
+ * Build a summary of all known Inc projects for context
  */
 async function buildGlobalProjectsContext(): Promise<string> {
-  const allMissions = await listRegisteredMissions();
+  const allEpics = await listRegisteredEpics();
 
-  if (allMissions.length === 0) {
+  if (allEpics.length === 0) {
     return "";
   }
 
@@ -91,20 +91,20 @@ async function buildGlobalProjectsContext(): Promise<string> {
   ];
 
   // Group by project path
-  const byProject = new Map<string, typeof allMissions>();
-  for (const entry of allMissions) {
+  const byProject = new Map<string, typeof allEpics>();
+  for (const entry of allEpics) {
     const existing = byProject.get(entry.projectPath) || [];
     existing.push(entry);
     byProject.set(entry.projectPath, existing);
   }
 
-  for (const [projectPath, missions] of byProject) {
+  for (const [projectPath, epics] of byProject) {
     lines.push(`## ${projectPath}`);
-    for (const m of missions) {
-      const mission = await readMission(m.projectPath, m.missionId);
-      const status = mission?.status ?? "unknown";
-      const desc = m.description.split("\n")[0].slice(0, 80);
-      lines.push(`- **${m.missionId}** (${status}): ${desc}`);
+    for (const e of epics) {
+      const epic = await readEpic(e.projectPath, e.epicId);
+      const status = epic?.status ?? "unknown";
+      const desc = e.description.split("\n")[0].slice(0, 80);
+      lines.push(`- **${e.epicId}** (${status}): ${desc}`);
     }
     lines.push("");
   }
@@ -119,7 +119,7 @@ interface ChatMessage {
 }
 
 interface ChatTranscript {
-  missionId: string;
+  epicId: string;
   agentRole: string;
   startedAt: string;
   endedAt?: string;
@@ -195,7 +195,7 @@ function generateSummary(transcript: ChatTranscript): string {
     ``,
     `**Date**: ${transcript.startedAt}`,
     `**Agent**: ${transcript.agentRole}`,
-    `**Mission**: ${transcript.missionId}`,
+    `**Epic**: ${transcript.epicId}`,
     ``,
     `## Key Points`,
     ``,
@@ -225,56 +225,56 @@ function generateSummary(transcript: ChatTranscript): string {
 }
 
 export const chatCommand = new Command("chat")
-  .description("Chat with an agent about a mission")
-  .argument("<mission-id>", "The mission to chat about")
+  .description("Chat with an agent about an epic")
+  .argument("<epic-id>", "The epic to chat about")
   .option("-r, --role <role>", "Agent role: pm, tech-lead, coder", "pm")
   .option("-t, --task <id>", "Task ID (required for coder role)")
-  .action(async (missionId: string, options: { role: string; task?: string }) => {
+  .action(async (epicId: string, options: { role: string; task?: string }) => {
     let projectRoot = process.cwd();
 
     try {
-      // First try to find mission in current directory
-      let mission = await readMission(projectRoot, missionId);
+      // First try to find epic in current directory
+      let epic = await readEpic(projectRoot, epicId);
 
       // If not found locally, check global registry
-      if (!mission) {
-        const registryEntry = await lookupMission(missionId);
+      if (!epic) {
+        const registryEntry = await lookupEpic(epicId);
         if (registryEntry) {
           projectRoot = registryEntry.projectPath;
-          mission = await readMission(projectRoot, missionId);
+          epic = await readEpic(projectRoot, epicId);
         }
       }
 
       // Still not found? Try fuzzy search
-      if (!mission) {
-        const matches = await searchMissions(missionId);
+      if (!epic) {
+        const matches = await searchEpics(epicId);
         if (matches.length === 1) {
           projectRoot = matches[0].projectPath;
-          mission = await readMission(projectRoot, matches[0].missionId);
+          epic = await readEpic(projectRoot, matches[0].epicId);
         } else if (matches.length > 1) {
-          console.error(`Multiple missions match "${missionId}":`);
+          console.error(`Multiple epics match "${epicId}":`);
           for (const match of matches.slice(0, 5)) {
-            console.error(`  - ${match.missionId} (${match.projectPath})`);
+            console.error(`  - ${match.epicId} (${match.projectPath})`);
           }
           console.error(`\nBe more specific.`);
           process.exit(1);
         }
       }
 
-      if (!mission) {
-        console.error(`Mission not found: ${missionId}`);
+      if (!epic) {
+        console.error(`Epic not found: ${epicId}`);
         process.exit(1);
       }
 
       console.log(`Project: ${projectRoot}`);
 
       // Update status if new
-      if (mission.status === "new" && options.role === "pm") {
-        mission.status = "spec_in_progress";
-        await writeMission(projectRoot, mission);
+      if (epic.status === "new" && options.role === "pm") {
+        epic.status = "spec_in_progress";
+        await writeEpic(projectRoot, epic);
       }
 
-      console.log(`Chatting with ${options.role} about: ${mission.description}`);
+      console.log(`Chatting with ${options.role} about: ${epic.description}`);
       console.log("Enter sends. Empty line after text = multiline done. 'exit' to quit.");
       console.log("");
 
@@ -314,8 +314,8 @@ export const chatCommand = new Command("chat")
         });
       };
 
-      const missionDir = getMissionDir(projectRoot, missionId);
-      const chatsDir = getChatsDir(projectRoot, missionId);
+      const epicDir = getEpicDir(projectRoot, epicId);
+      const chatsDir = getChatsDir(projectRoot, epicId);
 
       // Load recent summaries for context
       const recentSummaries = await loadRecentSummaries(chatsDir);
@@ -328,8 +328,8 @@ export const chatCommand = new Command("chat")
       const taskId = options.task ? parseInt(options.task, 10) : undefined;
       const systemPrompt = await getSystemPrompt(
         options.role,
-        missionId,
-        mission.description,
+        epicId,
+        epic.description,
         projectRoot,
         taskId,
         recentSummaries,
@@ -338,7 +338,7 @@ export const chatCommand = new Command("chat")
 
       // Initialize transcript for this session
       const transcript: ChatTranscript = {
-        missionId,
+        epicId,
         agentRole: options.role,
         startedAt: new Date().toISOString(),
         messages: [],
@@ -392,7 +392,7 @@ export const chatCommand = new Command("chat")
             tools: allTools,
             allowedTools: allTools,
             permissionMode: "acceptEdits",
-            additionalDirectories: [missionDir],
+            additionalDirectories: [epicDir],
             plugins: [{ type: "local", path: INC_PLUGIN_PATH }],
           };
 
@@ -478,7 +478,7 @@ function getAllowedTools(role: string): string[] {
 
 async function getSystemPrompt(
   role: string,
-  missionId: string,
+  epicId: string,
   description: string,
   projectRoot: string,
   taskId?: number,
@@ -489,24 +489,24 @@ async function getSystemPrompt(
 
   switch (role) {
     case "pm":
-      basePrompt = getPmPrompt(missionId, description);
+      basePrompt = getPmPrompt(epicId, description);
       break;
     case "tech-lead":
-      basePrompt = getTechLeadPrompt(missionId, description);
+      basePrompt = getTechLeadPrompt(epicId, description);
       break;
     case "coder":
       if (taskId === undefined) {
         throw new Error("Coder role requires --task <id>");
       }
-      const tasksFile = await readTasks(projectRoot, missionId);
+      const tasksFile = await readTasks(projectRoot, epicId);
       if (!tasksFile) {
-        throw new Error(`No tasks found for mission: ${missionId}`);
+        throw new Error(`No tasks found for epic: ${epicId}`);
       }
       const task = tasksFile.tasks.find((t) => t.id === taskId);
       if (!task) {
         throw new Error(`Task not found: ${taskId}`);
       }
-      basePrompt = getCoderPrompt(missionId, description, task.id, task.name, task.description);
+      basePrompt = getCoderPrompt(epicId, description, task.id, task.name, task.description);
       break;
     default:
       basePrompt = `You are a helpful assistant working on: ${description}`;
@@ -519,7 +519,7 @@ async function getSystemPrompt(
 
   // Append recent chat summaries for context
   if (recentSummaries && recentSummaries.length > 0) {
-    basePrompt += `\n\n# Recent Chat Context\n\nHere are summaries of recent conversations about this mission:\n\n`;
+    basePrompt += `\n\n# Recent Chat Context\n\nHere are summaries of recent conversations about this epic:\n\n`;
     for (const summary of recentSummaries) {
       basePrompt += `---\n${summary}\n`;
     }

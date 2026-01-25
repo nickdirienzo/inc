@@ -1,31 +1,31 @@
 ---
-description: Approve a Strike mission's spec, plan, or PR. Use when the user wants to move a mission forward to the next phase.
+description: Approve an Inc epic's spec, plan, or PR. Use when the user wants to move an epic forward to the next phase.
 ---
 
-# Approve Mission Phase
+# Approve Epic Phase
 
-Move a mission forward by approving its current phase.
+Move an epic forward by approving its current phase.
 
 ## Approve a Spec
-When mission is in `spec_complete` status:
+When epic is in `spec_complete` status:
 ```bash
-strike approve spec <mission-id>
+inc approve spec <epic-id>
 ```
-This moves the mission to `plan_in_progress` - Tech Lead will create the architecture.
+This moves the epic to `plan_in_progress` - Tech Lead will create the architecture.
 
 ## Approve a Plan
-When mission is in `plan_complete` status:
+When epic is in `plan_complete` status:
 ```bash
-strike approve plan <mission-id>
+inc approve plan <epic-id>
 ```
-This moves the mission to `coding` - Coders will start on tasks.
+This moves the epic to `coding` - Coders will start on tasks.
 
 ## Approve a PR
-When mission is in `review` status:
+When epic is in `review` status:
 ```bash
-strike approve pr <mission-id>
+inc approve pr <epic-id>
 ```
-This marks the mission as `done`.
+This marks the epic as `done`.
 
 Use this skill when:
 - User says "approve the spec"
@@ -34,4 +34,4 @@ Use this skill when:
 - User says "ship it" or "merge it"
 - User says "approve" (then ask which phase if unclear)
 
-Always confirm the mission ID and phase before approving.
+Always confirm the epic ID and phase before approving.

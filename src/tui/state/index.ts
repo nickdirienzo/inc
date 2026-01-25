@@ -1,2 +1,2 @@
 export * from "./types.js";
-export * from "./useMissions.js";
+export * from "./useEpics.js";

@@ -1,10 +1,10 @@
 /**
- * State schema for Strike missions and tasks
+ * State schema for Inc epics and tasks
  */
 
 import { Query } from "@anthropic-ai/claude-agent-sdk";
 
-export type MissionStatus =
+export type EpicStatus =
   | "new"
   | "spec_in_progress"
   | "spec_complete"
@@ -27,10 +27,10 @@ export interface NeedsAttention {
   question: string;
 }
 
-export interface Mission {
+export interface Epic {
   id: string;
   description: string;
-  status: MissionStatus;
+  status: EpicStatus;
   created_at: string;
   updated_at: string;
   needs_attention?: NeedsAttention;
@@ -61,10 +61,10 @@ export interface Decision {
 }
 
 /**
- * Structure of the .inc directory for a mission
+ * Structure of the .inc directory for an epic
  */
-export interface MissionDirectory {
-  missionJson: Mission;
+export interface EpicDirectory {
+  epicJson: Epic;
   specMd?: string;
   architectureMd?: string;
   tasksJson?: TasksFile;
@@ -81,7 +81,7 @@ export interface DaemonState {
 }
 
 export interface ActiveAgent {
-  mission_id: string;
+  epic_id: string;
   role: "pm" | "tech_lead" | "coder";
   task_id?: number;
   session_id: string;

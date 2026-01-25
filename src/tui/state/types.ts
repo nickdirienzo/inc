@@ -1,13 +1,13 @@
 /**
- * TUI-specific type definitions for mission control interface
+ * TUI-specific type definitions for epic control interface
  */
 
-import { Mission, NeedsAttention } from "../../state/index.js";
+import { Epic, NeedsAttention } from "../../state/index.js";
 
 /**
- * Mission with additional project path information for TUI display
+ * Epic with additional project path information for TUI display
  */
-export interface MissionWithProject extends Mission {
+export interface EpicWithProject extends Epic {
   projectPath: string;
 }
 
@@ -29,12 +29,12 @@ export interface ContextFile {
 }
 
 /**
- * Complete TUI state for mission control interface
+ * Complete TUI state for epic control interface
  */
 export interface TUIState {
-  missions: MissionWithProject[];
+  epics: EpicWithProject[];
   needsAttention: Array<{
-    missionId: string;
+    epicId: string;
     attention: NeedsAttention;
   }>;
   contextFile: ContextFile | null;
@@ -44,7 +44,7 @@ export interface TUIState {
  * Proactive alert for notifying user of important events
  */
 export interface ProactiveAlert {
-  missionId: string;
+  epicId: string;
   message: string;
   timestamp: string;
 }
