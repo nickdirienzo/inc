@@ -3,8 +3,8 @@
  */
 
 export function getCoderPrompt(
-  missionId: string,
-  missionDescription: string,
+  epicId: string,
+  epicDescription: string,
   taskId: number,
   taskName: string,
   taskDescription: string
@@ -21,7 +21,7 @@ When this task is done, you're done. You will not receive another task. Make thi
 
 # Context
 
-The mission: ${missionDescription}
+The epic: ${epicDescription}
 
 Read architecture.md for the technical approach. The Tech Lead wrote it to help you understand where your task fits.
 
@@ -93,7 +93,7 @@ The Tech Lead will review and either clarify or reassign.
 
 # Context Files
 
-These files are in .inc/missions/${missionId}/:
+These files are in .inc/epics/${epicId}/:
 - architecture.md - Technical plan from Tech Lead (READ THIS FIRST)
 - spec.md - Product spec from PM
 

@@ -21,7 +21,7 @@ We've already solved these problems with human organizations. The org chart exis
 
 The insight: agents don't have human ramp-up costs. They can read ADRs, grep the codebase, and understand the domain in seconds. So we can form **inc teams** around problems (not domains) that spin up, execute, and dissolve.
 
-Conway's Law inverts: instead of your architecture mirroring your org structure, your org structure (inc teams) mirrors the problem structure.
+Conway's Law inverts: instead of your architecture mirroring your org structure, your org structure (epic teams) mirrors the problem structure.
 
 ## Architecture
 
@@ -36,7 +36,7 @@ You (CTO - vision, taste, final approval)
       │    ├── Webhook routing (GitHub → teams)
       │    └── State file management
       │
-      └── Inc Teams (one per idea)
+      └── Epic Teams (one per idea)
            │
            ├── PM Agent
            │    ├── Takes vague input, asks clarifying questions
@@ -67,16 +67,16 @@ You (CTO - vision, taste, final approval)
 
 ## State Schema
 
-Each idea lives in `.inc/ideas/<idea-slug>/`:
+Each epic lives in `.inc/epics/<epic-slug>/`:
 
 ```
 .inc/
   config.json              # global config (model preferences, project root)
   daemon.pid               # daemon process ID
   daemon.log               # daemon logs
-  ideas/
+  epics/
     dashboard-perf/
-      idea.json            # metadata (created, status, pr_number)
+      epic.json            # metadata (created, status, pr_number)
       spec.md              # PM's output (frozen once approved)
       architecture.md      # Tech Lead's plan (frozen once approved)
       tasks.json           # task status, assignees, blockers
@@ -87,7 +87,7 @@ Each idea lives in `.inc/ideas/<idea-slug>/`:
         coder-1.jsonl
 ```
 
-### idea.json
+### epic.json
 
 ```json
 {
@@ -196,7 +196,7 @@ Per-task review verdicts, written by daemon as reviewers complete:
 }
 ```
 
-Stored in `.inc/ideas/<idea>/reviews/task-<id>.json`
+Stored in `.inc/epics/<epic>/reviews/task-<id>.json`
 
 ### decisions.md
 
@@ -230,27 +230,27 @@ inc daemon start           # start background daemon
 inc daemon stop            # stop daemon  
 inc daemon status          # is it running?
 
-# Ideas
-inc new "<description>"    # create idea, start PM conversation
-inc status                 # show all ideas + progress
-inc chat [idea-slug]       # talk to CTO (no arg) or idea's PM
-inc logs <idea-slug>       # tail agent activity
+# Epics
+inc new "<description>"    # create epic, start PM conversation
+inc status                 # show all epics + progress
+inc chat [epic-slug]       # talk to CTO (no arg) or epic's PM
+inc logs <epic-slug>       # tail agent activity
 
-# Approvals  
-inc approve spec <idea>    # approve PM's spec → planning
-inc approve plan <idea>    # approve Tech Lead's plan → coding
-inc approve pr <idea>      # final blessing → team review
+# Approvals
+inc approve spec <epic>    # approve PM's spec → planning
+inc approve plan <epic>    # approve Tech Lead's plan → coding
+inc approve pr <epic>      # final blessing → team review
 
 # Debugging
-inc inspect <idea>         # dump full state
-inc kill <idea>            # stop all agents for an idea
-inc retry <idea> [task-id] # retry a failed task
+inc inspect <epic>         # dump full state
+inc kill <epic>            # stop all agents for an epic
+inc retry <epic> [task-id] # retry a failed task
 ```
 
 ### `inc status` output
 
 ```
-STRIKE TEAMS
+EPIC TEAMS
 
   dashboard-perf     ███████░░░  3/4 tasks    PR #847 ready
   notifications      ██░░░░░░░░  1/5 tasks    coding
@@ -266,7 +266,7 @@ Run `inc chat billing` to respond.
 ### `inc chat` flow
 
 No argument → talk to CTO agent (status, prioritization, general questions)
-With idea slug → talk to that idea's PM (or Tech Lead if past spec phase)
+With epic slug → talk to that epic's PM (or Tech Lead if past spec phase)
 
 ```
 $ inc chat billing
@@ -285,8 +285,8 @@ Run `inc approve spec billing` to proceed to planning.
 
 | Role | Writes | Tools | Permission Mode |
 |------|--------|-------|-----------------|
-| PM | spec.md, idea.json, decisions.md | Read, Grep, Glob, Write (restricted) | acceptEdits |
-| Tech Lead | architecture.md, tasks.json, idea.json, decisions.md, code | Read, Grep, Glob, Write, Edit, Bash (jj, gh, tests) | acceptEdits |
+| PM | spec.md, epic.json, decisions.md | Read, Grep, Glob, Write (restricted) | acceptEdits |
+| Tech Lead | architecture.md, tasks.json, epic.json, decisions.md, code | Read, Grep, Glob, Write, Edit, Bash (jj, gh, tests) | acceptEdits |
 | Coder | code only | Read, Grep, Glob, Write, Edit, Bash (tests only) | bypassPermissions |
 | Reviewers | nothing (read-only) | Read, Grep, Glob | bypassPermissions |
 
@@ -383,7 +383,7 @@ When any agent session ends:
 
 ## jj Workflow
 
-Each idea gets a worktree:
+Each epic gets a worktree:
 ```bash
 jj workspace add .inc/worktrees/dashboard-perf
 ```
@@ -450,7 +450,7 @@ jj rebase -d main  # when ready for PR
 | Coders produce bad code | Tech Lead reviews everything before squash |
 | jj conflicts pile up | Keep tasks small and independent, Tech Lead resolves immediately |
 | Daemon crashes | Stateless design — restart reads state files and recovers |
-| API costs explode | Add `maxBudgetUsd` per idea, show costs in status |
+| API costs explode | Add `maxBudgetUsd` per epic, show costs in status |
 | Agent goes rogue | Restricted tool permissions, worktree isolation, no direct main access |
 | tasks.json race condition | Only daemon writes to tasks.json, Coders report via results |
 
@@ -461,4 +461,4 @@ jj rebase -d main  # when ready for PR
 3. Can watch Coders execute tasks without any permission prompts
 4. Can see PR appear with all work squashed
 5. Total human interaction: 3 approvals + answering PM questions
-6. Time from idea to PR: < 2 hours for a small feature
+6. Time from epic to PR: < 2 hours for a small feature

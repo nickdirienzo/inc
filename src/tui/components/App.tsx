@@ -1,21 +1,21 @@
 /**
- * App root component for Strike Mission Control TUI
+ * App root component for Inc Epic Control TUI
  *
  * Implements three-pane layout:
- * - Top 40%: MissionOverview
+ * - Top 40%: EpicOverview
  * - Bottom-left 60% height, 60% width: ChatInterface
  * - Bottom-right 60% height, 40% width: ContextPane (conditional)
  */
 
 import React, { useState, useEffect } from "react";
 import { Box, Text } from "ink";
-import { MissionOverview } from "./MissionOverview.js";
+import { EpicOverview } from "./EpicOverview.js";
 import { ChatInterface } from "./ChatInterface.js";
 import { ContextPane } from "./ContextPane.js";
-import { createUseMissions } from "../state/useMissions.js";
+import { createUseEpics } from "../state/useEpics.js";
 import { AgentResponseState, processAgentResponse } from "../state/useAgent.js";
 import type { AgentMessage, ContextFile } from "../state/types.js";
-import type { UseMissionsResult } from "../state/useMissions.js";
+import type { UseEpicsResult } from "../state/useEpics.js";
 import { executeTuiAgentQuery } from "../agent/query.js";
 
 /**
@@ -71,22 +71,22 @@ function getUserFriendlyErrorMessage(error: string): string {
  * App component state
  */
 interface AppState {
-  missions: UseMissionsResult;
+  epics: UseEpicsResult;
   messages: AgentMessage[];
   isThinking: boolean;
   contextFile: ContextFile | null;
 }
 
 /**
- * Main App component for TUI Mission Control
+ * Main App component for TUI Epic Control
  *
  * Manages global state and coordinates between child components
  */
 export function App() {
   // State management
   const [state, setState] = useState<AppState>({
-    missions: {
-      missions: [],
+    epics: {
+      epics: [],
       needsAttention: [],
       loading: true,
     },
@@ -101,23 +101,23 @@ export function App() {
   // Agent response handler
   const [agentState] = useState(() => new AgentResponseState());
 
-  // Setup missions monitoring
+  // Setup epics monitoring
   useEffect(() => {
-    const missionsMonitor = createUseMissions((result: UseMissionsResult) => {
+    const epicsMonitor = createUseEpics((result: UseEpicsResult) => {
       setState((prev) => {
         // Detect new or changed needs_attention flags
         const newMessages: AgentMessage[] = [];
 
-        for (const mission of result.needsAttention) {
-          if (mission.needs_attention) {
+        for (const epic of result.needsAttention) {
+          if (epic.needs_attention) {
             // Create hash for deduplication
-            const hash = `${mission.id}:${mission.needs_attention.question}`;
+            const hash = `${epic.id}:${epic.needs_attention.question}`;
 
             // Only post message if we haven't alerted for this exact question before
             if (!alertedQuestions.has(hash)) {
               newMessages.push({
                 role: "mission_control" as const,
-                content: `⚠️  Mission "${mission.id}" needs your attention: ${mission.needs_attention.question}`,
+                content: `⚠️  Epic "${epic.id}" needs your attention: ${epic.needs_attention.question}`,
                 timestamp: new Date().toISOString(),
               });
 
@@ -131,24 +131,24 @@ export function App() {
         if (newMessages.length > 0) {
           return {
             ...prev,
-            missions: result,
+            epics: result,
             messages: enforceMessageLimit([...prev.messages, ...newMessages]),
           };
         }
 
         return {
           ...prev,
-          missions: result,
+          epics: result,
         };
       });
     });
 
     // Start monitoring
-    missionsMonitor.start();
+    epicsMonitor.start();
 
     // Cleanup on unmount
     return () => {
-      missionsMonitor.stop();
+      epicsMonitor.stop();
     };
   }, [alertedQuestions]);
 
@@ -297,21 +297,21 @@ export function App() {
   };
 
   // Loading state
-  if (state.missions.loading) {
+  if (state.epics.loading) {
     return (
       <Box flexDirection="column" padding={2}>
-        <Text color="cyan">Loading Strike Mission Control...</Text>
+        <Text color="cyan">Loading Inc Epic Control...</Text>
       </Box>
     );
   }
 
   return (
     <Box flexDirection="column" width="100%" height="100%">
-      {/* Top 40%: Mission Overview */}
+      {/* Top 40%: Epic Overview */}
       <Box height="40%" flexDirection="column">
-        <MissionOverview
-          missions={state.missions.missions}
-          needsAttention={state.missions.needsAttention}
+        <EpicOverview
+          epics={state.epics.epics}
+          needsAttention={state.epics.needsAttention}
         />
       </Box>
 

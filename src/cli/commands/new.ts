@@ -1,6 +1,6 @@
 import { Command } from "commander";
-import { createMission, initIncDir } from "../../state/index.js";
-import { registerMission } from "../../registry/index.js";
+import { createEpic, initIncDir } from "../../state/index.js";
+import { registerEpic } from "../../registry/index.js";
 import { readFile, writeFile, unlink } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import { tmpdir } from "node:os";
@@ -22,10 +22,10 @@ function slugify(text: string): string {
  */
 async function openEditor(): Promise<string> {
   const editor = process.env.EDITOR || process.env.VISUAL || "vi";
-  const tempFile = join(tmpdir(), `inc-mission-${Date.now()}.md`);
+  const tempFile = join(tmpdir(), `inc-epic-${Date.now()}.md`);
 
   // Write template to temp file
-  const template = `# Mission Brief
+  const template = `# Epic Brief
 
 Describe what you want to build. Be as detailed as you like.
 
@@ -80,9 +80,9 @@ Delete this section before saving.
 }
 
 export const newCommand = new Command("new")
-  .description("Create a new mission")
-  .argument("[description]", "Description of the mission (optional if using --file or $EDITOR)")
-  .option("-f, --file <path>", "Read mission brief from a file")
+  .description("Create a new epic")
+  .argument("[description]", "Description of the epic (optional if using --file or $EDITOR)")
+  .option("-f, --file <path>", "Read epic brief from a file")
   .action(async (description: string | undefined, options: { file?: string }) => {
     const projectRoot = process.cwd();
 
@@ -98,33 +98,33 @@ export const newCommand = new Command("new")
         brief = description;
       } else {
         // Open $EDITOR for multiline input
-        console.log("Opening editor for mission brief...");
+        console.log("Opening editor for epic brief...");
         brief = await openEditor();
       }
 
       if (!brief) {
-        console.error("Mission brief cannot be empty");
+        console.error("Epic brief cannot be empty");
         process.exit(1);
       }
 
-      // Ensure .strike directory exists
+      // Ensure .inc directory exists
       await initIncDir(projectRoot);
 
       // Generate slug from first line of description
       const id = slugify(brief);
 
-      const mission = await createMission(projectRoot, id, brief);
+      const epic = await createEpic(projectRoot, id, brief);
 
       // Register in global registry so it can be found from anywhere
-      await registerMission(mission.id, projectRoot, brief);
+      await registerEpic(epic.id, projectRoot, brief);
 
-      console.log(`Created mission: ${mission.id}`);
-      console.log(`  Status: ${mission.status}`);
-      console.log(`  Path: .inc/missions/${mission.id}/`);
+      console.log(`Created epic: ${epic.id}`);
+      console.log(`  Status: ${epic.status}`);
+      console.log(`  Path: .inc/epics/${epic.id}/`);
       console.log("");
-      console.log(`Next: run 'inc chat ${mission.id}' to start working with the PM`);
+      console.log(`Next: run 'inc chat ${epic.id}' to start working with the PM`);
     } catch (error) {
-      console.error("Failed to create mission:", error);
+      console.error("Failed to create epic:", error);
       process.exit(1);
     }
   });

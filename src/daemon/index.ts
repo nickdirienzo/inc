@@ -7,15 +7,15 @@
 import { watch } from "chokidar";
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import {
-  getMissionsDir,
-  getMissionDir,
-  listMissions,
-  readMission,
-  writeMission,
+  getEpicsDir,
+  getEpicDir,
+  listEpics,
+  readEpic,
+  writeEpic,
   readTasks,
   writeTasks,
   writeDaemonState,
-  type Mission,
+  type Epic,
   type Task,
   type DaemonState,
   type ActiveAgent,
@@ -23,8 +23,8 @@ import {
 import { getPmPrompt, getTechLeadPrompt, getCoderPrompt } from "../prompts/index.js";
 import {
   createTaskWorkspace,
-  createMissionWorkspace,
-  squashTaskIntoMission,
+  createEpicWorkspace,
+  squashTaskIntoEpic,
   describeCommit,
   isJjRepo,
 } from "../jj/index.js";
@@ -52,17 +52,17 @@ async function updateDaemonState(): Promise<void> {
   await writeDaemonState(projectRoot, state);
 }
 
-async function spawnPmAgent(mission: Mission): Promise<void> {
-  const agentKey = `pm:${mission.id}`;
+async function spawnPmAgent(epic: Epic): Promise<void> {
+  const agentKey = `pm:${epic.id}`;
 
   if (activeAgents.has(agentKey)) {
     return; // Already running
   }
 
-  log(`Spawning PM agent for: ${mission.id}`);
+  log(`Spawning PM agent for: ${epic.id}`);
 
   const agent: ActiveAgent = {
-    mission_id: mission.id,
+    epic_id: epic.id,
     role: "pm",
     session_id: "",
     started_at: new Date().toISOString(),
@@ -70,21 +70,21 @@ async function spawnPmAgent(mission: Mission): Promise<void> {
   activeAgents.set(agentKey, agent);
   await updateDaemonState();
 
-  const logger = new AgentLogger(projectRoot, mission.id, "pm");
+  const logger = new AgentLogger(projectRoot, epic.id, "pm");
 
   try {
-    const systemPrompt = getPmPrompt(mission.id, mission.description);
-    const missionDir = getMissionDir(projectRoot, mission.id);
+    const systemPrompt = getPmPrompt(epic.id, epic.description);
+    const epicDir = getEpicDir(projectRoot, epic.id);
 
     const queryHandle = query({
-      prompt: "Read the mission and start working on the spec. Read the codebase to understand the context.",
+      prompt: "Read the epic and start working on the spec. Read the codebase to understand the context.",
       options: {
         cwd: projectRoot,
         systemPrompt,
         tools: ["Read", "Glob", "Grep", "Edit", "Write"],
         allowedTools: ["Read", "Glob", "Grep", "Edit", "Write"],
         permissionMode: "acceptEdits",
-        additionalDirectories: [missionDir],
+        additionalDirectories: [epicDir],
         maxTurns: 50,
       },
     });
@@ -100,14 +100,14 @@ async function spawnPmAgent(mission: Mission): Promise<void> {
 
       if (message.type === "result") {
         if (message.subtype === "success") {
-          log(`PM agent completed for ${mission.id}: ${message.result}`);
+          log(`PM agent completed for ${epic.id}: ${message.result}`);
         } else {
-          log(`PM agent error for ${mission.id}: ${message.errors?.join(", ") || message.subtype}`);
+          log(`PM agent error for ${epic.id}: ${message.errors?.join(", ") || message.subtype}`);
         }
       }
     }
   } catch (error) {
-    log(`PM agent failed for ${mission.id}: ${error}`);
+    log(`PM agent failed for ${epic.id}: ${error}`);
   } finally {
     await logger.close();
     activeAgents.delete(agentKey);
@@ -115,17 +115,17 @@ async function spawnPmAgent(mission: Mission): Promise<void> {
   }
 }
 
-async function spawnTechLeadAgent(mission: Mission): Promise<void> {
-  const agentKey = `tech_lead:${mission.id}`;
+async function spawnTechLeadAgent(epic: Epic): Promise<void> {
+  const agentKey = `tech_lead:${epic.id}`;
 
   if (activeAgents.has(agentKey)) {
     return;
   }
 
-  log(`Spawning Tech Lead agent for: ${mission.id}`);
+  log(`Spawning Tech Lead agent for: ${epic.id}`);
 
   const agent: ActiveAgent = {
-    mission_id: mission.id,
+    epic_id: epic.id,
     role: "tech_lead",
     session_id: "",
     started_at: new Date().toISOString(),
@@ -133,11 +133,11 @@ async function spawnTechLeadAgent(mission: Mission): Promise<void> {
   activeAgents.set(agentKey, agent);
   await updateDaemonState();
 
-  const logger = new AgentLogger(projectRoot, mission.id, "tech_lead");
+  const logger = new AgentLogger(projectRoot, epic.id, "tech_lead");
 
   try {
-    const systemPrompt = getTechLeadPrompt(mission.id, mission.description);
-    const missionDir = getMissionDir(projectRoot, mission.id);
+    const systemPrompt = getTechLeadPrompt(epic.id, epic.description);
+    const epicDir = getEpicDir(projectRoot, epic.id);
 
     const queryHandle = query({
       prompt: "Read the spec and create the architecture plan and task breakdown.",
@@ -147,7 +147,7 @@ async function spawnTechLeadAgent(mission: Mission): Promise<void> {
         tools: ["Read", "Glob", "Grep", "Edit", "Write", "Bash"],
         allowedTools: ["Read", "Glob", "Grep", "Edit", "Write", "Bash"],
         permissionMode: "acceptEdits",
-        additionalDirectories: [missionDir],
+        additionalDirectories: [epicDir],
         maxTurns: 50,
       },
     });
@@ -163,14 +163,14 @@ async function spawnTechLeadAgent(mission: Mission): Promise<void> {
 
       if (message.type === "result") {
         if (message.subtype === "success") {
-          log(`Tech Lead agent completed for ${mission.id}: ${message.result}`);
+          log(`Tech Lead agent completed for ${epic.id}: ${message.result}`);
         } else {
-          log(`Tech Lead agent error for ${mission.id}: ${message.errors?.join(", ") || message.subtype}`);
+          log(`Tech Lead agent error for ${epic.id}: ${message.errors?.join(", ") || message.subtype}`);
         }
       }
     }
   } catch (error) {
-    log(`Tech Lead agent failed for ${mission.id}: ${error}`);
+    log(`Tech Lead agent failed for ${epic.id}: ${error}`);
   } finally {
     await logger.close();
     activeAgents.delete(agentKey);
@@ -178,14 +178,14 @@ async function spawnTechLeadAgent(mission: Mission): Promise<void> {
   }
 }
 
-async function spawnCoderAgent(mission: Mission, task: Task): Promise<void> {
-  const agentKey = `coder:${mission.id}:${task.id}`;
+async function spawnCoderAgent(epic: Epic, task: Task): Promise<void> {
+  const agentKey = `coder:${epic.id}:${task.id}`;
 
   if (activeAgents.has(agentKey)) {
     return;
   }
 
-  log(`Spawning Coder agent for task ${task.id} in ${mission.id}`);
+  log(`Spawning Coder agent for task ${task.id} in ${epic.id}`);
 
   // Check if this is a jj repo - if so, create a workspace for the coder
   const useJjWorkspace = await isJjRepo(projectRoot);
@@ -193,7 +193,7 @@ async function spawnCoderAgent(mission: Mission, task: Task): Promise<void> {
 
   if (useJjWorkspace) {
     log(`Creating jj workspace for task ${task.id}`);
-    const wsResult = await createTaskWorkspace(projectRoot, mission.id, task.id);
+    const wsResult = await createTaskWorkspace(projectRoot, epic.id, task.id);
     if (!wsResult.success) {
       log(`Failed to create workspace for task ${task.id}: ${wsResult.error}`);
       return;
@@ -203,18 +203,18 @@ async function spawnCoderAgent(mission: Mission, task: Task): Promise<void> {
   }
 
   // Mark task as in_progress
-  const tasksFile = await readTasks(projectRoot, mission.id);
+  const tasksFile = await readTasks(projectRoot, epic.id);
   if (tasksFile) {
     const t = tasksFile.tasks.find((t) => t.id === task.id);
     if (t) {
       t.status = "in_progress";
       t.assignee = `coder-${Date.now()}`;
-      await writeTasks(projectRoot, mission.id, tasksFile);
+      await writeTasks(projectRoot, epic.id, tasksFile);
     }
   }
 
   const agent: ActiveAgent = {
-    mission_id: mission.id,
+    epic_id: epic.id,
     role: "coder",
     task_id: task.id,
     session_id: "",
@@ -223,17 +223,17 @@ async function spawnCoderAgent(mission: Mission, task: Task): Promise<void> {
   activeAgents.set(agentKey, agent);
   await updateDaemonState();
 
-  const logger = new AgentLogger(projectRoot, mission.id, "coder", task.id);
+  const logger = new AgentLogger(projectRoot, epic.id, "coder", task.id);
 
   try {
     const systemPrompt = getCoderPrompt(
-      mission.id,
-      mission.description,
+      epic.id,
+      epic.description,
       task.id,
       task.name,
       task.description
     );
-    const missionDir = getMissionDir(projectRoot, mission.id);
+    const epicDir = getEpicDir(projectRoot, epic.id);
 
     const queryHandle = query({
       prompt: "Complete your assigned task.",
@@ -243,7 +243,7 @@ async function spawnCoderAgent(mission: Mission, task: Task): Promise<void> {
         tools: ["Read", "Glob", "Grep", "Edit", "Write", "Bash"],
         allowedTools: ["Read", "Glob", "Grep", "Edit", "Write", "Bash"],
         permissionMode: "acceptEdits",
-        additionalDirectories: [missionDir],
+        additionalDirectories: [epicDir],
         maxTurns: 30,
       },
     });
@@ -261,9 +261,9 @@ async function spawnCoderAgent(mission: Mission, task: Task): Promise<void> {
       if (message.type === "result") {
         if (message.subtype === "success") {
           result = message.result;
-          log(`Coder agent completed task ${task.id} in ${mission.id}`);
+          log(`Coder agent completed task ${task.id} in ${epic.id}`);
         } else {
-          log(`Coder agent error for task ${task.id} in ${mission.id}: ${message.errors?.join(", ") || message.subtype}`);
+          log(`Coder agent error for task ${task.id} in ${epic.id}: ${message.errors?.join(", ") || message.subtype}`);
         }
       }
     }
@@ -272,12 +272,12 @@ async function spawnCoderAgent(mission: Mission, task: Task): Promise<void> {
     if (useJjWorkspace) {
       await describeCommit(
         workspacePath,
-        `[inc] Task ${task.id}: ${task.name}\n\nMission: ${mission.id}\n\n${result}`
+        `[inc] Task ${task.id}: ${task.name}\n\nEpic: ${epic.id}\n\n${result}`
       );
     }
 
     // Mark task as done (Tech Lead will review)
-    const updatedTasks = await readTasks(projectRoot, mission.id);
+    const updatedTasks = await readTasks(projectRoot, epic.id);
     if (updatedTasks) {
       const t = updatedTasks.tasks.find((t) => t.id === task.id);
       if (t) {
@@ -288,44 +288,44 @@ async function spawnCoderAgent(mission: Mission, task: Task): Promise<void> {
         } else {
           t.status = "done";
         }
-        await writeTasks(projectRoot, mission.id, updatedTasks);
+        await writeTasks(projectRoot, epic.id, updatedTasks);
 
-        // If task is done and we're using jj, squash task into mission workspace
+        // If task is done and we're using jj, squash task into epic workspace
         if (t.status === "done" && useJjWorkspace) {
-          log(`Squashing task ${task.id} into mission workspace for ${mission.id}`);
-          const squashResult = await squashTaskIntoMission(
+          log(`Squashing task ${task.id} into epic workspace for ${epic.id}`);
+          const squashResult = await squashTaskIntoEpic(
             projectRoot,
-            mission.id,
+            epic.id,
             task.id
           );
           if (!squashResult.success) {
             log(`Failed to squash task ${task.id}: ${squashResult.error}`);
-            // Re-read mission to get latest state
-            const currentMission = await readMission(projectRoot, mission.id);
-            if (currentMission) {
-              currentMission.needs_attention = {
+            // Re-read epic to get latest state
+            const currentEpic = await readEpic(projectRoot, epic.id);
+            if (currentEpic) {
+              currentEpic.needs_attention = {
                 from: "tech_lead",
-                question: `Failed to squash task ${task.id} into mission workspace: ${squashResult.error}`,
+                question: `Failed to squash task ${task.id} into epic workspace: ${squashResult.error}`,
               };
-              await writeMission(projectRoot, currentMission);
+              await writeEpic(projectRoot, currentEpic);
             }
           } else {
-            log(`Successfully squashed task ${task.id} into mission workspace`);
+            log(`Successfully squashed task ${task.id} into epic workspace`);
           }
         }
       }
     }
   } catch (error) {
-    log(`Coder agent failed for task ${task.id} in ${mission.id}: ${error}`);
+    log(`Coder agent failed for task ${task.id} in ${epic.id}: ${error}`);
 
     // Mark task as failed
-    const failedTasks = await readTasks(projectRoot, mission.id);
+    const failedTasks = await readTasks(projectRoot, epic.id);
     if (failedTasks) {
       const t = failedTasks.tasks.find((t) => t.id === task.id);
       if (t) {
         t.status = "failed";
         t.feedback = String(error);
-        await writeTasks(projectRoot, mission.id, failedTasks);
+        await writeTasks(projectRoot, epic.id, failedTasks);
       }
     }
   } finally {
@@ -352,14 +352,14 @@ async function runEngineeringManager(): Promise<void> {
 
       // If it's a coder, reset the task to not_started so it can be picked up again
       if (agent.role === "coder" && agent.task_id) {
-        const tasksFile = await readTasks(projectRoot, agent.mission_id);
+        const tasksFile = await readTasks(projectRoot, agent.epic_id);
         if (tasksFile) {
           const task = tasksFile.tasks.find((t) => t.id === agent.task_id);
           if (task && task.status === "in_progress") {
             log(`[EM] Resetting stuck task ${task.id} to not_started`);
             task.status = "not_started";
             task.assignee = null;
-            await writeTasks(projectRoot, agent.mission_id, tasksFile);
+            await writeTasks(projectRoot, agent.epic_id, tasksFile);
           }
         }
       }
@@ -367,19 +367,19 @@ async function runEngineeringManager(): Promise<void> {
   }
 
   // Check for in_progress tasks with no active agent
-  const missionIds = await listMissions(projectRoot);
-  for (const missionId of missionIds) {
-    const tasksFile = await readTasks(projectRoot, missionId);
+  const epicIds = await listEpics(projectRoot);
+  for (const epicId of epicIds) {
+    const tasksFile = await readTasks(projectRoot, epicId);
     if (!tasksFile) continue;
 
     for (const task of tasksFile.tasks) {
       if (task.status === "in_progress") {
-        const agentKey = `coder:${missionId}:${task.id}`;
+        const agentKey = `coder:${epicId}:${task.id}`;
         if (!activeAgents.has(agentKey)) {
           log(`[EM] Task ${task.id} is in_progress but has no agent, resetting to not_started`);
           task.status = "not_started";
           task.assignee = null;
-          await writeTasks(projectRoot, missionId, tasksFile);
+          await writeTasks(projectRoot, epicId, tasksFile);
         }
       }
     }
@@ -392,64 +392,64 @@ async function runEngineeringManager(): Promise<void> {
 }
 
 async function checkAndSpawnAgents(): Promise<void> {
-  const missionIds = await listMissions(projectRoot);
+  const epicIds = await listEpics(projectRoot);
 
-  for (const missionId of missionIds) {
-    const mission = await readMission(projectRoot, missionId);
-    if (!mission) continue;
+  for (const epicId of epicIds) {
+    const epic = await readEpic(projectRoot, epicId);
+    if (!epic) continue;
 
     // Skip if needs user attention
-    if (mission.needs_attention) {
+    if (epic.needs_attention) {
       continue;
     }
 
     // Skip if abandoned
-    if (mission.status === "abandoned") {
+    if (epic.status === "abandoned") {
       continue;
     }
 
-    switch (mission.status) {
+    switch (epic.status) {
       case "new":
       case "spec_in_progress":
         // PM should be working on spec
         // Update status if new
-        if (mission.status === "new") {
-          mission.status = "spec_in_progress";
-          await writeMission(projectRoot, mission);
+        if (epic.status === "new") {
+          epic.status = "spec_in_progress";
+          await writeEpic(projectRoot, epic);
         }
-        spawnPmAgent(mission);
+        spawnPmAgent(epic);
         break;
 
       case "plan_in_progress":
         // Tech Lead should be creating architecture/tasks
-        spawnTechLeadAgent(mission);
+        spawnTechLeadAgent(epic);
         break;
 
       case "coding":
-        // Create mission workspace if it doesn't exist
+        // Create epic workspace if it doesn't exist
         const useJj = await isJjRepo(projectRoot);
         if (useJj) {
-          const wsResult = await createMissionWorkspace(projectRoot, missionId);
+          const wsResult = await createEpicWorkspace(projectRoot, epicId);
           if (!wsResult.success) {
-            log(`Failed to create mission workspace for ${missionId}: ${wsResult.error}`);
-            mission.needs_attention = {
+            log(`Failed to create epic workspace for ${epicId}: ${wsResult.error}`);
+            epic.needs_attention = {
               from: "tech_lead",
-              question: `Failed to create mission workspace: ${wsResult.error}`,
+              question: `Failed to create epic workspace: ${wsResult.error}`,
             };
-            await writeMission(projectRoot, mission);
+            await writeEpic(projectRoot, epic);
             continue;
           }
 
-          // Only update mission.json if workspace path changed (avoid infinite loop)
-          if (mission.workspace_path !== wsResult.workspacePath) {
-            log(`Mission workspace ready at ${wsResult.workspacePath}`);
-            mission.workspace_path = wsResult.workspacePath;
-            await writeMission(projectRoot, mission);
+          // Only update epic.json if workspace path changed (avoid infinite loop)
+          if (epic.workspace_path !== wsResult.workspacePath) {
+            log(`Epic workspace ready at ${wsResult.workspacePath}`);
+            epic.workspace_path = wsResult.workspacePath;
+            await writeEpic(projectRoot, epic);
           }
         }
 
         // Find tasks that need coders
-        const tasksFile = await readTasks(projectRoot, missionId);
+        const tasksFile = await readTasks(projectRoot, epicId);
         if (tasksFile) {
           for (const task of tasksFile.tasks) {
             if (task.status === "not_started") {
@@ -460,7 +460,7 @@ async function checkAndSpawnAgents(): Promise<void> {
               });
 
               if (blockers.length === 0) {
-                spawnCoderAgent(mission, task);
+                spawnCoderAgent(epic, task);
               }
             }
           }
@@ -469,9 +469,9 @@ async function checkAndSpawnAgents(): Promise<void> {
           const allDone = tasksFile.tasks.every((t) => t.status === "done");
           if (allDone && tasksFile.tasks.length > 0) {
             // Move to review
-            mission.status = "review";
-            await writeMission(projectRoot, mission);
-            log(`All tasks complete for ${missionId}, moving to review`);
+            epic.status = "review";
+            await writeEpic(projectRoot, epic);
+            log(`All tasks complete for ${epicId}, moving to review`);
           }
         }
         break;
@@ -493,8 +493,8 @@ async function main(): Promise<void> {
   }, EM_INTERVAL);
 
   // Watch for changes
-  const missionsDir = getMissionsDir(projectRoot);
-  const watcher = watch(missionsDir, {
+  const epicsDir = getEpicsDir(projectRoot);
+  const watcher = watch(epicsDir, {
     persistent: true,
     ignoreInitial: true,
     depth: 2,

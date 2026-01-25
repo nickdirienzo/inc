@@ -1,14 +1,14 @@
 import React from "react";
 import { Box, Text } from "ink";
-import type { MissionWithProject } from "../state/types.js";
+import type { EpicWithProject } from "../state/types.js";
 
-interface MissionOverviewProps {
-  missions: MissionWithProject[];
-  needsAttention: MissionWithProject[];
+interface EpicOverviewProps {
+  epics: EpicWithProject[];
+  needsAttention: EpicWithProject[];
 }
 
 /**
- * Get color for mission status
+ * Get color for epic status
  */
 function getStatusColor(status: string): string {
   switch (status) {
@@ -31,28 +31,28 @@ function getStatusColor(status: string): string {
 }
 
 /**
- * Group missions by project path
+ * Group epics by project path
  */
-function groupMissionsByProject(missions: MissionWithProject[]): Map<string, MissionWithProject[]> {
-  const grouped = new Map<string, MissionWithProject[]>();
+function groupEpicsByProject(epics: EpicWithProject[]): Map<string, EpicWithProject[]> {
+  const grouped = new Map<string, EpicWithProject[]>();
 
-  for (const mission of missions) {
-    const existing = grouped.get(mission.projectPath) || [];
-    existing.push(mission);
-    grouped.set(mission.projectPath, existing);
+  for (const epic of epics) {
+    const existing = grouped.get(epic.projectPath) || [];
+    existing.push(epic);
+    grouped.set(epic.projectPath, existing);
   }
 
   return grouped;
 }
 
 /**
- * MissionOverview component
+ * EpicOverview component
  *
- * Displays missions grouped by project with needs attention section at top.
- * Shows mission status with color coding and PR numbers.
+ * Displays epics grouped by project with needs attention section at top.
+ * Shows epic status with color coding and PR numbers.
  */
-export function MissionOverview({ missions, needsAttention }: MissionOverviewProps) {
-  const groupedMissions = groupMissionsByProject(missions);
+export function EpicOverview({ epics, needsAttention }: EpicOverviewProps) {
+  const groupedEpics = groupEpicsByProject(epics);
 
   return (
     <Box flexDirection="column" paddingX={1}>
@@ -68,20 +68,20 @@ export function MissionOverview({ missions, needsAttention }: MissionOverviewPro
           >
             <Text bold color="yellow">⚠️  NEEDS ATTENTION</Text>
             <Box flexDirection="column">
-              {needsAttention.map((mission) => (
-                <Box key={mission.id} flexDirection="column" marginBottom={1}>
+              {needsAttention.map((epic) => (
+                <Box key={epic.id} flexDirection="column" marginBottom={1}>
                   <Box>
                     <Text color="yellow" bold>
-                      ⚠️  {mission.id}
+                      ⚠️  {epic.id}
                     </Text>
                     <Text color="gray" dimColor>
-                      {" "}({mission.projectPath})
+                      {" "}({epic.projectPath})
                     </Text>
                   </Box>
-                  {mission.needs_attention && (
+                  {epic.needs_attention && (
                     <Box paddingLeft={3}>
                       <Text color="white">
-                        {mission.needs_attention.from}: {mission.needs_attention.question}
+                        {epic.needs_attention.from}: {epic.needs_attention.question}
                       </Text>
                     </Box>
                   )}
@@ -92,7 +92,7 @@ export function MissionOverview({ missions, needsAttention }: MissionOverviewPro
         </Box>
       )}
 
-      {/* Missions by Project */}
+      {/* Epics by Project */}
       <Box
         borderStyle="round"
         borderColor="cyan"
@@ -100,14 +100,14 @@ export function MissionOverview({ missions, needsAttention }: MissionOverviewPro
         paddingY={1}
         flexDirection="column"
       >
-        <Text bold color="cyan">📋 MISSIONS</Text>
+        <Text bold color="cyan">📋 EPICS</Text>
         <Box flexDirection="column">
-          {groupedMissions.size === 0 ? (
+          {groupedEpics.size === 0 ? (
             <Text color="gray" dimColor>
-              No missions found. Run 'strike new "your mission"' to create one.
+              No epics found. Run 'inc new "your epic"' to create one.
             </Text>
           ) : (
-            Array.from(groupedMissions.entries()).map(([projectPath, projectMissions]) => (
+            Array.from(groupedEpics.entries()).map(([projectPath, projectEpics]) => (
               <Box key={projectPath} flexDirection="column" marginBottom={1}>
                 {/* Project Header */}
                 <Box marginBottom={1}>
@@ -116,24 +116,24 @@ export function MissionOverview({ missions, needsAttention }: MissionOverviewPro
                   </Text>
                 </Box>
 
-                {/* Missions for this project */}
-                {projectMissions.map((mission) => {
-                  const statusColor = getStatusColor(mission.status);
-                  const hasAttention = mission.needs_attention !== undefined;
-                  const prInfo = mission.pr_number ? ` (PR #${mission.pr_number})` : "";
+                {/* Epics for this project */}
+                {projectEpics.map((epic) => {
+                  const statusColor = getStatusColor(epic.status);
+                  const hasAttention = epic.needs_attention !== undefined;
+                  const prInfo = epic.pr_number ? ` (PR #${epic.pr_number})` : "";
 
                   return (
-                    <Box key={mission.id} paddingLeft={2} marginBottom={1}>
+                    <Box key={epic.id} paddingLeft={2} marginBottom={1}>
                       <Box width={30}>
                         <Text>
                           {hasAttention && (
                             <Text color="yellow">⚠️  </Text>
                           )}
-                          <Text>{mission.id}</Text>
+                          <Text>{epic.id}</Text>
                         </Text>
                       </Box>
                       <Box width={20}>
-                        <Text color={statusColor}>{mission.status}</Text>
+                        <Text color={statusColor}>{epic.status}</Text>
                       </Box>
                       <Box>
                         <Text color="gray">{prInfo}</Text>

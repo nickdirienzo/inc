@@ -1,23 +1,23 @@
 ---
-description: Check the status of a Strike mission. Use when the user asks how a mission is going, what the current state is, or wants to see tasks.
+description: Check the status of an Inc epic. Use when the user asks how an epic is going, what the current state is, or wants to see tasks.
 ---
 
-# Check Mission Status
+# Check Epic Status
 
-Check the status of a specific mission:
+Check the status of a specific epic:
 
 ```bash
-strike status <mission-id>
+inc status <epic-id>
 ```
 
 This shows:
-- Mission description and current status
+- Epic description and current status
 - When it was created and last updated
 - Any attention flags
 - All tasks with their status (if in coding phase)
 - PR number (if in review)
 
-Mission statuses:
+Epic statuses:
 - `new` - Just created
 - `spec_in_progress` - PM is working on the spec
 - `spec_complete` - Spec ready for approval
@@ -30,5 +30,5 @@ Mission statuses:
 Use this skill when:
 - User asks "how is X going?"
 - User asks "what's the status of..."
-- User wants to see tasks for a mission
+- User wants to see tasks for an epic
 - User asks about progress

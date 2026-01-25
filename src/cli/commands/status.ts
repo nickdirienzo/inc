@@ -1,43 +1,43 @@
 import { Command } from "commander";
-import { listMissions, readMission, readTasks, readDaemonPid } from "../../state/index.js";
-import { listRegisteredMissions, lookupMission, searchMissions } from "../../registry/index.js";
+import { listEpics, readEpic, readTasks, readDaemonPid } from "../../state/index.js";
+import { listRegisteredEpics, lookupEpic, searchEpics } from "../../registry/index.js";
 
 export const statusCommand = new Command("status")
-  .description("Show status of missions")
-  .argument("[mission-id]", "Specific mission to show (optional)")
-  .option("-g, --global", "Show all missions across all projects")
-  .option("--include-abandoned", "Include abandoned missions in output")
-  .action(async (missionId: string | undefined, options: { global?: boolean; includeAbandoned?: boolean }) => {
+  .description("Show status of epics")
+  .argument("[epic-id]", "Specific epic to show (optional)")
+  .option("-g, --global", "Show all epics across all projects")
+  .option("--include-abandoned", "Include abandoned epics in output")
+  .action(async (epicId: string | undefined, options: { global?: boolean; includeAbandoned?: boolean }) => {
     let projectRoot = process.cwd();
 
     try {
-      // If --global flag, show all registered missions
-      if (options.global && !missionId) {
-        const allMissions = await listRegisteredMissions();
-        if (allMissions.length === 0) {
-          console.log("No missions registered globally. Create missions with 'inc new \"your mission\"'");
+      // If --global flag, show all registered epics
+      if (options.global && !epicId) {
+        const allEpics = await listRegisteredEpics();
+        if (allEpics.length === 0) {
+          console.log("No epics registered globally. Create epics with 'inc new \"your epic\"'");
           return;
         }
 
-        // Filter out abandoned missions unless --include-abandoned is set
-        const filteredMissions = [];
-        for (const entry of allMissions) {
-          const mission = await readMission(entry.projectPath, entry.missionId);
-          if (mission?.status !== "abandoned" || options.includeAbandoned) {
-            filteredMissions.push({ entry, mission });
+        // Filter out abandoned epics unless --include-abandoned is set
+        const filteredEpics = [];
+        for (const entry of allEpics) {
+          const epic = await readEpic(entry.projectPath, entry.epicId);
+          if (epic?.status !== "abandoned" || options.includeAbandoned) {
+            filteredEpics.push({ entry, epic });
           }
         }
 
-        if (filteredMissions.length === 0) {
-          console.log("No active missions found. Use --include-abandoned to see abandoned missions.");
+        if (filteredEpics.length === 0) {
+          console.log("No active epics found. Use --include-abandoned to see abandoned epics.");
           return;
         }
 
-        console.log("All Inc missions:\n");
-        for (const { entry, mission } of filteredMissions) {
-          const status = mission?.status ?? "unknown";
-          const attention = mission?.needs_attention ? " ⚠️" : "";
-          console.log(`  ${entry.missionId}: ${status}${attention}`);
+        console.log("All Inc epics:\n");
+        for (const { entry, epic } of filteredEpics) {
+          const status = epic?.status ?? "unknown";
+          const attention = epic?.needs_attention ? " ⚠️" : "";
+          console.log(`  ${entry.epicId}: ${status}${attention}`);
           console.log(`    ${entry.description}`);
           console.log(`    → ${entry.projectPath}`);
           console.log("");
@@ -59,55 +59,55 @@ export const statusCommand = new Command("status")
       }
       console.log("");
 
-      if (missionId) {
-        // Show specific mission - first try local, then registry
-        let mission = await readMission(projectRoot, missionId);
+      if (epicId) {
+        // Show specific epic - first try local, then registry
+        let epic = await readEpic(projectRoot, epicId);
 
-        if (!mission) {
-          const registryEntry = await lookupMission(missionId);
+        if (!epic) {
+          const registryEntry = await lookupEpic(epicId);
           if (registryEntry) {
             projectRoot = registryEntry.projectPath;
-            mission = await readMission(projectRoot, missionId);
+            epic = await readEpic(projectRoot, epicId);
           }
         }
 
-        if (!mission) {
-          const matches = await searchMissions(missionId);
+        if (!epic) {
+          const matches = await searchEpics(epicId);
           if (matches.length === 1) {
             projectRoot = matches[0].projectPath;
-            mission = await readMission(projectRoot, matches[0].missionId);
+            epic = await readEpic(projectRoot, matches[0].epicId);
           } else if (matches.length > 1) {
-            console.error(`Multiple missions match "${missionId}":`);
+            console.error(`Multiple epics match "${epicId}":`);
             for (const match of matches.slice(0, 5)) {
-              console.error(`  - ${match.missionId} (${match.projectPath})`);
+              console.error(`  - ${match.epicId} (${match.projectPath})`);
             }
             process.exit(1);
           }
         }
 
-        if (!mission) {
-          console.error(`Mission not found: ${missionId}`);
+        if (!epic) {
+          console.error(`Epic not found: ${epicId}`);
           process.exit(1);
         }
 
         console.log(`Project: ${projectRoot}`);
 
-        console.log(`Mission: ${mission.id}`);
-        console.log(`  Description: ${mission.description}`);
-        console.log(`  Status: ${mission.status}`);
-        console.log(`  Created: ${mission.created_at}`);
-        console.log(`  Updated: ${mission.updated_at}`);
+        console.log(`Epic: ${epic.id}`);
+        console.log(`  Description: ${epic.description}`);
+        console.log(`  Status: ${epic.status}`);
+        console.log(`  Created: ${epic.created_at}`);
+        console.log(`  Updated: ${epic.updated_at}`);
 
-        if (mission.needs_attention) {
-          console.log(`  ⚠️  Needs attention from ${mission.needs_attention.from}: ${mission.needs_attention.question}`);
+        if (epic.needs_attention) {
+          console.log(`  ⚠️  Needs attention from ${epic.needs_attention.from}: ${epic.needs_attention.question}`);
         }
 
-        if (mission.pr_number) {
-          console.log(`  PR: #${mission.pr_number}`);
+        if (epic.pr_number) {
+          console.log(`  PR: #${epic.pr_number}`);
         }
 
         // Show tasks if they exist
-        const tasksFile = await readTasks(projectRoot, missionId);
+        const tasksFile = await readTasks(projectRoot, epicId);
         if (tasksFile && tasksFile.tasks.length > 0) {
           console.log("");
           console.log("Tasks:");
@@ -123,32 +123,32 @@ export const statusCommand = new Command("status")
           }
         }
       } else {
-        // Show all missions
-        const missionIds = await listMissions(projectRoot);
+        // Show all epics
+        const epicIds = await listEpics(projectRoot);
 
-        if (missionIds.length === 0) {
-          console.log("No missions found. Run 'inc new \"your mission\"' to create one.");
+        if (epicIds.length === 0) {
+          console.log("No epics found. Run 'inc new \"your epic\"' to create one.");
           return;
         }
 
-        // Filter out abandoned missions unless --include-abandoned is set
-        const activeMissions = [];
-        for (const id of missionIds) {
-          const mission = await readMission(projectRoot, id);
-          if (mission && (mission.status !== "abandoned" || options.includeAbandoned)) {
-            activeMissions.push(mission);
+        // Filter out abandoned epics unless --include-abandoned is set
+        const activeEpics = [];
+        for (const id of epicIds) {
+          const epic = await readEpic(projectRoot, id);
+          if (epic && (epic.status !== "abandoned" || options.includeAbandoned)) {
+            activeEpics.push(epic);
           }
         }
 
-        if (activeMissions.length === 0) {
-          console.log("No active missions found. Use --include-abandoned to see abandoned missions.");
+        if (activeEpics.length === 0) {
+          console.log("No active epics found. Use --include-abandoned to see abandoned epics.");
           return;
         }
 
-        console.log("Missions:");
-        for (const mission of activeMissions) {
-          const attentionFlag = mission.needs_attention ? " ⚠️" : "";
-          console.log(`  ${mission.id}: ${mission.status}${attentionFlag}`);
+        console.log("Epics:");
+        for (const epic of activeEpics) {
+          const attentionFlag = epic.needs_attention ? " ⚠️" : "";
+          console.log(`  ${epic.id}: ${epic.status}${attentionFlag}`);
         }
       }
     } catch (error) {

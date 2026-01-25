@@ -5,7 +5,7 @@
 import { readFile, writeFile, mkdir, readdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { dirname } from "node:path";
-import type { Mission, TasksFile, DaemonState } from "./schema.js";
+import type { Epic, TasksFile, DaemonState } from "./schema.js";
 import * as paths from "./paths.js";
 
 /**
@@ -58,74 +58,74 @@ async function writeText(filePath: string, content: string): Promise<void> {
 }
 
 // ============================================================================
-// Mission operations
+// Epic operations
 // ============================================================================
 
-export async function readMission(projectRoot: string, missionId: string): Promise<Mission | null> {
-  return readJson<Mission>(paths.getMissionJsonPath(projectRoot, missionId));
+export async function readEpic(projectRoot: string, epicId: string): Promise<Epic | null> {
+  return readJson<Epic>(paths.getEpicJsonPath(projectRoot, epicId));
 }
 
-export async function writeMission(projectRoot: string, mission: Mission): Promise<void> {
-  mission.updated_at = new Date().toISOString();
-  await writeJson(paths.getMissionJsonPath(projectRoot, mission.id), mission);
+export async function writeEpic(projectRoot: string, epic: Epic): Promise<void> {
+  epic.updated_at = new Date().toISOString();
+  await writeJson(paths.getEpicJsonPath(projectRoot, epic.id), epic);
 }
 
-export async function listMissions(projectRoot: string): Promise<string[]> {
-  const missionsDir = paths.getMissionsDir(projectRoot);
-  if (!existsSync(missionsDir)) {
+export async function listEpics(projectRoot: string): Promise<string[]> {
+  const epicsDir = paths.getEpicsDir(projectRoot);
+  if (!existsSync(epicsDir)) {
     return [];
   }
-  const entries = await readdir(missionsDir, { withFileTypes: true });
+  const entries = await readdir(epicsDir, { withFileTypes: true });
   return entries.filter((e) => e.isDirectory()).map((e) => e.name);
 }
 
-export async function createMission(
+export async function createEpic(
   projectRoot: string,
   id: string,
   description: string
-): Promise<Mission> {
+): Promise<Epic> {
   const now = new Date().toISOString();
-  const mission: Mission = {
+  const epic: Epic = {
     id,
     description,
     status: "new",
     created_at: now,
     updated_at: now,
   };
-  await writeMission(projectRoot, mission);
-  return mission;
+  await writeEpic(projectRoot, epic);
+  return epic;
 }
 
 // ============================================================================
 // Spec operations
 // ============================================================================
 
-export async function readSpec(projectRoot: string, missionId: string): Promise<string | null> {
-  return readText(paths.getSpecPath(projectRoot, missionId));
+export async function readSpec(projectRoot: string, epicId: string): Promise<string | null> {
+  return readText(paths.getSpecPath(projectRoot, epicId));
 }
 
-export async function writeSpec(projectRoot: string, missionId: string, content: string): Promise<void> {
-  await writeText(paths.getSpecPath(projectRoot, missionId), content);
+export async function writeSpec(projectRoot: string, epicId: string, content: string): Promise<void> {
+  await writeText(paths.getSpecPath(projectRoot, epicId), content);
 }
 
 // ============================================================================
 // Architecture operations
 // ============================================================================
 
-export async function readArchitecture(projectRoot: string, missionId: string): Promise<string | null> {
-  return readText(paths.getArchitecturePath(projectRoot, missionId));
+export async function readArchitecture(projectRoot: string, epicId: string): Promise<string | null> {
+  return readText(paths.getArchitecturePath(projectRoot, epicId));
 }
 
-export async function writeArchitecture(projectRoot: string, missionId: string, content: string): Promise<void> {
-  await writeText(paths.getArchitecturePath(projectRoot, missionId), content);
+export async function writeArchitecture(projectRoot: string, epicId: string, content: string): Promise<void> {
+  await writeText(paths.getArchitecturePath(projectRoot, epicId), content);
 }
 
 // ============================================================================
 // Tasks operations
 // ============================================================================
 
-export async function readTasks(projectRoot: string, missionId: string): Promise<TasksFile | null> {
-  const filePath = paths.getTasksPath(projectRoot, missionId);
+export async function readTasks(projectRoot: string, epicId: string): Promise<TasksFile | null> {
+  const filePath = paths.getTasksPath(projectRoot, epicId);
   if (!existsSync(filePath)) {
     return null;
   }
@@ -139,32 +139,32 @@ export async function readTasks(projectRoot: string, missionId: string): Promise
   return parsed as TasksFile;
 }
 
-export async function writeTasks(projectRoot: string, missionId: string, tasks: TasksFile): Promise<void> {
-  await writeJson(paths.getTasksPath(projectRoot, missionId), tasks);
+export async function writeTasks(projectRoot: string, epicId: string, tasks: TasksFile): Promise<void> {
+  await writeJson(paths.getTasksPath(projectRoot, epicId), tasks);
 }
 
 // ============================================================================
 // Decisions operations
 // ============================================================================
 
-export async function readDecisions(projectRoot: string, missionId: string): Promise<string | null> {
-  return readText(paths.getDecisionsPath(projectRoot, missionId));
+export async function readDecisions(projectRoot: string, epicId: string): Promise<string | null> {
+  return readText(paths.getDecisionsPath(projectRoot, epicId));
 }
 
 export async function appendDecision(
   projectRoot: string,
-  missionId: string,
+  epicId: string,
   role: "pm" | "tech_lead" | "coder",
   decision: string,
   reasoning: string
 ): Promise<void> {
-  const existing = (await readDecisions(projectRoot, missionId)) || "";
+  const existing = (await readDecisions(projectRoot, epicId)) || "";
   const timestamp = new Date().toISOString();
   const roleTitle = role === "pm" ? "PM" : role === "tech_lead" ? "Tech Lead" : "Coder";
 
   const entry = `\n## ${roleTitle} Decision - ${timestamp}\n\n**Decision:** ${decision}\n\n**Reasoning:** ${reasoning}\n`;
 
-  await writeText(paths.getDecisionsPath(projectRoot, missionId), existing + entry);
+  await writeText(paths.getDecisionsPath(projectRoot, epicId), existing + entry);
 }
 
 // ============================================================================
@@ -207,5 +207,5 @@ export async function removeDaemonPid(projectRoot: string): Promise<void> {
 
 export async function initIncDir(projectRoot: string): Promise<void> {
   await ensureDir(paths.getIncDir(projectRoot));
-  await ensureDir(paths.getMissionsDir(projectRoot));
+  await ensureDir(paths.getEpicsDir(projectRoot));
 }

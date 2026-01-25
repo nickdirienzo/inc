@@ -23,11 +23,11 @@ npm link
 ## Usage
 
 ```bash
-# Create a new mission
+# Create a new epic
 inc new "Add dark mode support"
 
 # Chat with the PM to refine the spec
-inc chat <mission-id>
+inc chat <epic-id>
 
 # Check status
 inc status
@@ -40,16 +40,16 @@ inc daemon start
 
 ```
 .inc/                    # Local state directory
-  missions/
-    <mission-id>/
-      mission.json       # Mission metadata and status
+  epics/
+    <epic-id>/
+      epic.json          # Epic metadata and status
       spec.md           # PM-written specification
       architecture.md   # Tech Lead architecture doc
       tasks.json        # Breakdown of work
       chats/            # Chat transcripts
 
 ~/.inc/                  # Global state
-  registry.json          # Cross-project mission lookup
+  registry.json          # Cross-project epic lookup
 ```
 
 ## Status

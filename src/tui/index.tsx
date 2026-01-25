@@ -1,5 +1,5 @@
 /**
- * TUI entry point for Strike Mission Control
+ * TUI entry point for Inc Epic Control
  * Launches the Ink-based terminal interface
  */
 
@@ -16,7 +16,7 @@ let app: Instance | null = null;
 export function start(): () => void {
   try {
     // Show loading message briefly
-    console.log("Launching Strike Mission Control...\n");
+    console.log("Launching Inc Epic Control...\n");
 
     // Render the Ink app
     app = render(<App />);
