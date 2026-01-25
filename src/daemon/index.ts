@@ -128,6 +128,25 @@ async function spawnTechLeadAgent(epic: Epic): Promise<void> {
 
   log(`Spawning Tech Lead agent for: ${epic.id}`);
 
+  // Tech Lead MUST work in epic workspace, never default
+  if (!(await isJjRepo(projectRoot))) {
+    log(`Cannot spawn TL for ${epic.id}: not a jj repo`);
+    return;
+  }
+
+  const wsResult = await createEpicWorkspace(projectRoot, epic.id);
+  if (!wsResult.success) {
+    log(`Failed to create epic workspace for TL ${epic.id}: ${wsResult.error}`);
+    epic.needs_attention = {
+      from: "tech_lead",
+      question: `Failed to create epic workspace: ${wsResult.error}`,
+    };
+    await writeEpic(projectRoot, epic);
+    return;
+  }
+  const workspacePath = wsResult.workspacePath;
+  log(`TL using epic workspace at ${workspacePath}`);
+
   const agent: ActiveAgent = {
     epic_id: epic.id,
     role: "tech_lead",
@@ -146,7 +165,7 @@ async function spawnTechLeadAgent(epic: Epic): Promise<void> {
     const queryHandle = query({
       prompt: "Read the spec and create the architecture plan and task breakdown.",
       options: {
-        cwd: projectRoot,
+        cwd: workspacePath,
         systemPrompt,
         tools: ["Read", "Glob", "Grep", "Edit", "Write", "Bash"],
         allowedTools: ["Read", "Glob", "Grep", "Edit", "Write", "Bash"],
