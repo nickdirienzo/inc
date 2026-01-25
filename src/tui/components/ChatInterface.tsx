@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Box, Text, useInput } from "ink";
+import { Box, Text, useInput, useStdout } from "ink";
 import TextInput from "ink-text-input";
 import Spinner from "ink-spinner";
 import type { AgentMessage } from "../state/types.js";
+
+const MAX_MESSAGE_LINES = 15;
 
 interface ChatInterfaceProps {
   messages: AgentMessage[];
@@ -64,6 +66,8 @@ export function ChatInterface({ messages, isThinking, onSendMessage }: ChatInter
   const [isMultiline, setIsMultiline] = useState(false);
   const [multilineBuffer, setMultilineBuffer] = useState<string[]>([]);
   const messagesEndRef = useRef<number>(0);
+  const { stdout } = useStdout();
+  const terminalWidth = stdout?.columns ?? 80;
 
   // Auto-scroll effect when new messages appear
   useEffect(() => {
@@ -123,38 +127,52 @@ export function ChatInterface({ messages, isThinking, onSendMessage }: ChatInter
   // Determine visible messages (last 20 to avoid overflow)
   const visibleMessages = messages.slice(-20);
 
+  const contentWidth = Math.max(20, terminalWidth - 6);
+
+  const truncateMessage = (content: string): string => {
+    const lines = content.split("\n");
+    if (lines.length <= MAX_MESSAGE_LINES) {
+      return content;
+    }
+    return lines.slice(0, MAX_MESSAGE_LINES).join("\n") + "\n... (truncated)";
+  };
+
   return (
-    <Box flexDirection="column" height="100%">
-      {/* Message History */}
+    <Box flexDirection="column" height="100%" overflow="hidden">
+      {/* Message History - flexGrow so it takes available space, flexShrink so input stays visible */}
       <Box
         borderStyle="round"
         borderColor="green"
         paddingX={1}
         paddingY={1}
         flexDirection="column"
+        overflow="hidden"
+        flexGrow={1}
+        flexShrink={1}
       >
         <Text bold color="green">CHAT</Text>
-        <Box flexDirection="column" minHeight={10}>
+        <Box flexDirection="column" minHeight={10} overflow="hidden">
           {visibleMessages.length === 0 ? (
-            <Text dimColor>
-              No messages yet. Ask me about missions, or I'll notify you when something needs attention.
+            <Text dimColor wrap="truncate">
+              No messages yet. Ask me about epics, or I'll notify you when something needs attention.
             </Text>
           ) : (
-            <Box flexDirection="column">
+            <Box flexDirection="column" overflow="hidden">
               {visibleMessages.map((msg, idx) => {
                 const roleLabel = getRoleLabel(msg.role);
                 const roleColor = getRoleColor(msg.role);
                 const time = formatTime(msg.timestamp);
+                const displayContent = truncateMessage(msg.content);
 
                 return (
-                  <Box key={idx} flexDirection="column" marginBottom={1}>
+                  <Box key={idx} flexDirection="column" marginBottom={1} width={contentWidth}>
                     <Box flexDirection="row">
                       <Text bold color={roleColor}>
                         {roleLabel}
                       </Text>
                       <Text dimColor> • {time}</Text>
                     </Box>
-                    <Text>{msg.content}</Text>
+                    <Text wrap="wrap">{displayContent}</Text>
                   </Box>
                 );
               })}
@@ -173,13 +191,13 @@ export function ChatInterface({ messages, isThinking, onSendMessage }: ChatInter
         </Box>
       </Box>
 
-      {/* Input Area */}
-      <Box flexDirection="column" marginTop={1}>
+      {/* Input Area - flexShrink={0} ensures it stays visible */}
+      <Box flexDirection="column" marginTop={1} flexShrink={0}>
         {isMultiline && (
           <Box flexDirection="column" marginBottom={1}>
-            <Text dimColor>Multiline mode (press Enter to send, Esc to cancel):</Text>
-            {multilineBuffer.map((line, idx) => (
-              <Text key={idx} dimColor>
+            <Text dimColor wrap="truncate">Multiline mode (Enter to send, Esc to cancel):</Text>
+            {multilineBuffer.slice(-3).map((line, idx) => (
+              <Text key={idx} dimColor wrap="truncate">
                 {idx + 1}: {line}
               </Text>
             ))}
@@ -194,8 +212,8 @@ export function ChatInterface({ messages, isThinking, onSendMessage }: ChatInter
             onSubmit={handleSubmit}
             placeholder={
               isMultiline
-                ? "Continue message... (Enter to send)"
-                : "Type your message... (Shift+Enter for multiline)"
+                ? "Enter to send"
+                : "Type message..."
             }
           />
         </Box>
