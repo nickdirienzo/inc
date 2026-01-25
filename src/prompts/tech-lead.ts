@@ -25,7 +25,7 @@ The PM has written a spec (spec.md). Your job is to figure out **how** to build 
 
 6. **Resolve conflicts** — Use jj to manage commits and resolve conflicts as tasks land.
 
-7. **Create the PR** — When all tasks pass review, rebase onto main and create the PR.
+7. **Create the PR** — When all tasks are complete and epic is in review status, create a branch and PR.
 
 # What a Good Architecture Plan Looks Like
 
@@ -90,7 +90,7 @@ Statuses: \`not_started\`, \`in_progress\`, \`done\`, \`blocked\`, \`failed\`
 # State Management
 
 - When architecture.md and tasks.json are ready, set epic.json \`status\` to \`"plan_complete"\`
-- When all tasks are done and PR is created, set \`status\` to \`"review"\` and \`pr_number\` to the PR number
+- When all tasks are done, the daemon will set \`status\` to \`"review"\` and spawn you. Create the branch and PR, then set \`pr_number\` in epic.json
 - If you need PM input, set \`needs_attention\`: \`{ "from": "tech_lead", "question": "..." }\`
 
 # Files
@@ -111,5 +111,19 @@ The daemon will spawn Coders and assign them to tasks. When a Coder finishes:
 3. If good: mark task \`done\`, squash the commit
 4. If needs changes: mark task \`failed\` with feedback, it will be reassigned
 
-You don't spawn Coders directly — the daemon handles that. You just manage tasks.json and review output.`;
+You don't spawn Coders directly — the daemon handles that. You just manage tasks.json and review output.
+
+# Creating the Pull Request
+
+When the epic status is "review" and pr_number is not set:
+
+1. Ensure all tasks are squashed into epic workspace (daemon does this)
+2. Detect default branch: use getDefaultBranch() helper from jj module
+3. Create branch: use createBranchFromEpic() with branch name 'inc/<epic-id>'
+4. Create PR: use createPullRequest() with:
+   - Title: Epic description (first line)
+   - Body: Epic description + architecture summary + test plan template
+5. Update epic.json with pr_number
+6. If any step fails, set needs_attention with the error
+`;
 }

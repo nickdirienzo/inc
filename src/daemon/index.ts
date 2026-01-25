@@ -27,7 +27,11 @@ import {
   squashTaskIntoEpic,
   describeCommit,
   isJjRepo,
+  checkPrStatus,
+  updateDefaultWorkspace,
+  cleanupEpicWorkspaces,
 } from "../jj/index.js";
+import { createConflictResolutionEpic } from "../state/index.js";
 import { AgentLogger } from "../agents/logging.js";
 
 const projectRoot = process.argv[2] || process.cwd();
@@ -385,6 +389,57 @@ async function runEngineeringManager(): Promise<void> {
     }
   }
 
+  // Check for merged PRs and update default workspace
+  for (const epicId of epicIds) {
+    const epic = await readEpic(projectRoot, epicId);
+    if (!epic) continue;
+
+    // Check if this epic has a merged PR
+    if (epic.status === "review" && epic.pr_number) {
+      const prStatus = await checkPrStatus(epic.pr_number);
+
+      if (prStatus.success && prStatus.status === "merged") {
+        log(`[EM] PR #${epic.pr_number} for ${epicId} has been merged`);
+
+        // Try to update default workspace
+        const updateResult = await updateDefaultWorkspace(projectRoot);
+
+        if (updateResult.success) {
+          log(`[EM] Default workspace updated successfully after PR #${epic.pr_number}`);
+
+          // Clean up epic workspaces
+          await cleanupEpicWorkspaces(projectRoot, epicId);
+
+          // Mark epic as done
+          epic.status = "done";
+          epic.merged_at = new Date().toISOString();
+          await writeEpic(projectRoot, epic);
+
+          log(`[EM] Epic ${epicId} marked as done and workspaces cleaned up`);
+        } else {
+          // Conflict detected - create conflict resolution epic
+          log(`[EM] Conflict detected when updating default workspace: ${updateResult.error}`);
+
+          const conflictEpic = await createConflictResolutionEpic(
+            projectRoot,
+            epic.pr_number,
+            updateResult.error || "Unknown error"
+          );
+
+          log(`[EM] Created conflict resolution epic: ${conflictEpic.id}`);
+
+          // Still mark original epic as done and clean up
+          await cleanupEpicWorkspaces(projectRoot, epicId);
+          epic.status = "done";
+          epic.merged_at = new Date().toISOString();
+          await writeEpic(projectRoot, epic);
+
+          log(`[EM] Epic ${epicId} marked as done despite conflict`);
+        }
+      }
+    }
+  }
+
   await updateDaemonState();
 
   // Now spawn any needed agents
@@ -473,6 +528,14 @@ async function checkAndSpawnAgents(): Promise<void> {
             await writeEpic(projectRoot, epic);
             log(`All tasks complete for ${epicId}, moving to review`);
           }
+        }
+        break;
+
+      case "review":
+        // Check if PR already exists
+        if (!epic.pr_number) {
+          // Spawn Tech Lead to create the PR
+          spawnTechLeadAgent(epic);
         }
         break;
     }
