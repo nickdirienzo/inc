@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { listEpics, readEpic, readTasks, readDaemonPid } from "../../state/index.js";
+import { listEpics, readEpic, readTasks, readDaemonPid, resolveEpicId } from "../../state/index.js";
 import { listRegisteredEpics, lookupEpic, searchEpics } from "../../registry/index.js";
 
 export const statusCommand = new Command("status")
@@ -37,7 +37,8 @@ export const statusCommand = new Command("status")
         for (const { entry, epic } of filteredEpics) {
           const status = epic?.status ?? "unknown";
           const attention = epic?.needs_attention ? " ⚠️" : "";
-          console.log(`  ${entry.epicId}: ${status}${attention}`);
+          const shortId = epic?.shortId ?? entry.epicId.slice(0, 8);
+          console.log(`  ${shortId} ${entry.epicId}: ${status}${attention}`);
           console.log(`    ${entry.description}`);
           console.log(`    → ${entry.projectPath}`);
           console.log("");
@@ -60,14 +61,21 @@ export const statusCommand = new Command("status")
       console.log("");
 
       if (epicId) {
-        // Show specific epic - first try local, then registry
-        let epic = await readEpic(projectRoot, epicId);
+        // Show specific epic - first try local resolution (supports short IDs)
+        let resolvedEpicId = epicId;
+        const resolved = await resolveEpicId(projectRoot, epicId);
+        let epic = resolved?.epic ?? null;
+        if (resolved) {
+          resolvedEpicId = resolved.epicId;
+        }
 
         if (!epic) {
           const registryEntry = await lookupEpic(epicId);
           if (registryEntry) {
             projectRoot = registryEntry.projectPath;
-            epic = await readEpic(projectRoot, epicId);
+            const localResolved = await resolveEpicId(projectRoot, epicId);
+            epic = localResolved?.epic ?? await readEpic(projectRoot, epicId);
+            if (localResolved) resolvedEpicId = localResolved.epicId;
           }
         }
 
@@ -75,6 +83,7 @@ export const statusCommand = new Command("status")
           const matches = await searchEpics(epicId);
           if (matches.length === 1) {
             projectRoot = matches[0].projectPath;
+            resolvedEpicId = matches[0].epicId;
             epic = await readEpic(projectRoot, matches[0].epicId);
           } else if (matches.length > 1) {
             console.error(`Multiple epics match "${epicId}":`);
@@ -92,7 +101,8 @@ export const statusCommand = new Command("status")
 
         console.log(`Project: ${projectRoot}`);
 
-        console.log(`Epic: ${epic.id}`);
+        const shortId = epic.shortId ?? epic.id.slice(0, 8);
+        console.log(`Epic: ${shortId} ${epic.id}`);
         console.log(`  Description: ${epic.description}`);
         console.log(`  Status: ${epic.status}`);
         console.log(`  Created: ${epic.created_at}`);
@@ -107,7 +117,7 @@ export const statusCommand = new Command("status")
         }
 
         // Show tasks if they exist
-        const tasksFile = await readTasks(projectRoot, epicId);
+        const tasksFile = await readTasks(projectRoot, resolvedEpicId);
         if (tasksFile && tasksFile.tasks.length > 0) {
           console.log("");
           console.log("Tasks:");
@@ -148,7 +158,8 @@ export const statusCommand = new Command("status")
         console.log("Epics:");
         for (const epic of activeEpics) {
           const attentionFlag = epic.needs_attention ? " ⚠️" : "";
-          console.log(`  ${epic.id}: ${epic.status}${attentionFlag}`);
+          const shortId = epic.shortId ?? epic.id.slice(0, 8);
+          console.log(`  ${shortId} ${epic.id}: ${epic.status}${attentionFlag}`);
         }
       }
     } catch (error) {

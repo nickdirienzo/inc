@@ -3,6 +3,7 @@
  */
 
 import { readFile, writeFile, mkdir, readdir } from "node:fs/promises";
+import { randomBytes } from "node:crypto";
 import { existsSync } from "node:fs";
 import { dirname } from "node:path";
 import type { Epic, TasksFile, DaemonState } from "./schema.js";
@@ -79,14 +80,57 @@ export async function listEpics(projectRoot: string): Promise<string[]> {
   return entries.filter((e) => e.isDirectory()).map((e) => e.name);
 }
 
+export interface ResolvedEpic {
+  epic: Epic;
+  epicId: string;
+}
+
+export async function resolveEpicId(
+  projectRoot: string,
+  idOrShortId: string
+): Promise<ResolvedEpic | null> {
+  const epicIds = await listEpics(projectRoot);
+  const matches: ResolvedEpic[] = [];
+
+  for (const epicId of epicIds) {
+    const epic = await readEpic(projectRoot, epicId);
+    if (!epic) continue;
+
+    if (epicId === idOrShortId) {
+      return { epic, epicId };
+    }
+    if (epic.shortId === idOrShortId) {
+      return { epic, epicId };
+    }
+    if (epic.shortId?.startsWith(idOrShortId)) {
+      matches.push({ epic, epicId });
+    }
+    if (epicId.startsWith(idOrShortId)) {
+      matches.push({ epic, epicId });
+    }
+  }
+
+  if (matches.length === 1) {
+    return matches[0];
+  }
+
+  return null;
+}
+
+function generateShortId(): string {
+  return randomBytes(6).toString("hex").slice(0, 8);
+}
+
 export async function createEpic(
   projectRoot: string,
   id: string,
   description: string
 ): Promise<Epic> {
   const now = new Date().toISOString();
+  const shortId = generateShortId();
   const epic: Epic = {
     id,
+    shortId,
     description,
     status: "new",
     created_at: now,
