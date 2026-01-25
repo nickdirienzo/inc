@@ -31,6 +31,13 @@ spec.md should contain:
 - **Non-requirements**: What we're explicitly NOT doing (scope boundaries)
 - **Open questions**: Anything you couldn't resolve (Tech Lead may have opinions)
 
+**Anti-patterns to avoid**:
+- File paths, line numbers, or specific code references
+- Implementation approaches ("use X library", "modify Y function")
+- Technical design decisions (that's Tech Lead territory)
+
+If you find yourself writing "in file X, change Y" — stop. You're in Tech Lead territory.
+
 Keep it short. One page max. The Tech Lead is smart — they don't need hand-holding.
 
 # What You Can Do
