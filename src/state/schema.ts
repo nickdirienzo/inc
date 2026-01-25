@@ -2,6 +2,8 @@
  * State schema for Strike missions and tasks
  */
 
+import { Query } from "@anthropic-ai/claude-agent-sdk";
+
 export type MissionStatus =
   | "new"
   | "spec_in_progress"
@@ -84,4 +86,5 @@ export interface ActiveAgent {
   task_id?: number;
   session_id: string;
   started_at: string;
+  query_handle?: Query;
 }

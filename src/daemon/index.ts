@@ -76,7 +76,7 @@ async function spawnPmAgent(mission: Mission): Promise<void> {
     const systemPrompt = getPmPrompt(mission.id, mission.description);
     const missionDir = getMissionDir(projectRoot, mission.id);
 
-    for await (const message of query({
+    const queryHandle = query({
       prompt: "Read the mission and start working on the spec. Read the codebase to understand the context.",
       options: {
         cwd: projectRoot,
@@ -87,7 +87,10 @@ async function spawnPmAgent(mission: Mission): Promise<void> {
         additionalDirectories: [missionDir],
         maxTurns: 50,
       },
-    })) {
+    });
+    agent.query_handle = queryHandle;
+
+    for await (const message of queryHandle) {
       await logger.log(message);
 
       if (message.type === "system" && "subtype" in message && message.subtype === "init") {
@@ -136,7 +139,7 @@ async function spawnTechLeadAgent(mission: Mission): Promise<void> {
     const systemPrompt = getTechLeadPrompt(mission.id, mission.description);
     const missionDir = getMissionDir(projectRoot, mission.id);
 
-    for await (const message of query({
+    const queryHandle = query({
       prompt: "Read the spec and create the architecture plan and task breakdown.",
       options: {
         cwd: projectRoot,
@@ -147,7 +150,10 @@ async function spawnTechLeadAgent(mission: Mission): Promise<void> {
         additionalDirectories: [missionDir],
         maxTurns: 50,
       },
-    })) {
+    });
+    agent.query_handle = queryHandle;
+
+    for await (const message of queryHandle) {
       await logger.log(message);
 
       if (message.type === "system" && "subtype" in message && message.subtype === "init") {
@@ -229,8 +235,7 @@ async function spawnCoderAgent(mission: Mission, task: Task): Promise<void> {
     );
     const missionDir = getMissionDir(projectRoot, mission.id);
 
-    let result = "";
-    for await (const message of query({
+    const queryHandle = query({
       prompt: "Complete your assigned task.",
       options: {
         cwd: workspacePath,
@@ -241,7 +246,11 @@ async function spawnCoderAgent(mission: Mission, task: Task): Promise<void> {
         additionalDirectories: [missionDir],
         maxTurns: 30,
       },
-    })) {
+    });
+    agent.query_handle = queryHandle;
+
+    let result = "";
+    for await (const message of queryHandle) {
       await logger.log(message);
 
       if (message.type === "system" && "subtype" in message && message.subtype === "init") {
@@ -336,6 +345,9 @@ async function runEngineeringManager(): Promise<void> {
     const agentAge = now - new Date(agent.started_at).getTime();
     if (agentAge > STUCK_AGENT_THRESHOLD) {
       log(`[EM] Agent ${agentKey} appears stuck (running for ${Math.round(agentAge / 60000)}m), removing from tracking`);
+      if (agent.query_handle) {
+        agent.query_handle.close();
+      }
       activeAgents.delete(agentKey);
 
       // If it's a coder, reset the task to not_started so it can be picked up again

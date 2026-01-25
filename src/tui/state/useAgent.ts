@@ -68,6 +68,9 @@ export async function readFileContent(path: string, cwd: string = process.cwd())
  * This function searches for [FILE: path] patterns in the agent response,
  * reads the first file found, and returns a ContextFile object.
  *
+ * Note: If multiple file references are found, only the first one is used.
+ * This is documented behavior to keep the UI simple.
+ *
  * @param response - The agent's text response
  * @param cwd - Current working directory for resolving relative paths
  * @returns ContextFile object if a file reference was found and successfully read, null otherwise
@@ -82,12 +85,17 @@ export async function processAgentResponse(
     return null;
   }
 
-  // Use the first file reference found
+  // Use the first file reference found (documented behavior for multiple references)
   const firstPath = filePaths[0];
   const content = await readFileContent(firstPath, cwd);
 
   if (content === null) {
-    return null;
+    // File doesn't exist or can't be read
+    // Return an error context file instead of null to show user what happened
+    return {
+      path: firstPath,
+      content: `Error: Unable to read file "${firstPath}"\n\nThe file may not exist or cannot be accessed.`,
+    };
   }
 
   return {
