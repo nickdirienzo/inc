@@ -99,10 +99,10 @@ export async function resolveEpicId(
     if (epicId === idOrShortId) {
       return { epic, epicId };
     }
-    if (epic.shortId === idOrShortId) {
+    if (epic.slug === idOrShortId) {
       return { epic, epicId };
     }
-    if (epic.shortId?.startsWith(idOrShortId)) {
+    if (epic.slug?.startsWith(idOrShortId)) {
       matches.push({ epic, epicId });
     }
     if (epicId.startsWith(idOrShortId)) {
@@ -118,19 +118,19 @@ export async function resolveEpicId(
 }
 
 function generateShortId(): string {
-  return randomBytes(6).toString("hex").slice(0, 8);
+  return randomBytes(4).toString("hex");
 }
 
 export async function createEpic(
   projectRoot: string,
-  id: string,
+  slug: string,
   description: string
 ): Promise<Epic> {
   const now = new Date().toISOString();
-  const shortId = generateShortId();
+  const id = generateShortId();
   const epic: Epic = {
     id,
-    shortId,
+    slug,
     description,
     status: "new",
     created_at: now,
