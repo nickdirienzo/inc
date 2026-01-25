@@ -4,11 +4,20 @@
  * Inc uses jj workspaces to give each Coder agent their own isolated
  * working directory. This prevents conflicts when multiple Coders work
  * in parallel on epics.
+ *
+ * Workspaces are created in ~/.inc/projects/<hash>/workspaces/ to keep
+ * them outside the project directory tree. This prevents agents from
+ * accidentally accessing project files via relative paths.
  */
 
 import { spawn } from "node:child_process";
 import { mkdir, rm, access } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname } from "node:path";
+import {
+  getWorkspacesDir as getWorkspacesDirFromPaths,
+  getEpicWorkspacePath as getEpicWorkspacePathFromPaths,
+  getTaskWorkspacePath as getTaskWorkspacePathFromPaths,
+} from "../state/paths.js";
 
 export interface JjResult {
   success: boolean;
@@ -74,15 +83,15 @@ export async function isJjRepo(cwd: string): Promise<boolean> {
   return root !== null;
 }
 
-export function getWorkspacesDir(projectRoot: string, epicId: string): string {
-  return join(projectRoot, ".inc", "workspaces", epicId);
+export function getWorkspacesDir(projectRoot: string): string {
+  return getWorkspacesDirFromPaths(projectRoot);
 }
 
 export function getEpicWorkspacePath(
   projectRoot: string,
   epicId: string
 ): string {
-  return getWorkspacesDir(projectRoot, epicId);
+  return getEpicWorkspacePathFromPaths(projectRoot, epicId);
 }
 
 export function getTaskWorkspacePath(
@@ -90,7 +99,7 @@ export function getTaskWorkspacePath(
   epicId: string,
   taskId: number
 ): string {
-  return join(getWorkspacesDir(projectRoot, epicId), `task-${taskId}`);
+  return getTaskWorkspacePathFromPaths(projectRoot, epicId, taskId);
 }
 
 async function isValidJjWorkspace(workspacePath: string, workspaceName: string, projectRoot: string): Promise<boolean> {
@@ -121,8 +130,7 @@ export async function createEpicWorkspace(
   const workspacePath = getEpicWorkspacePath(projectRoot, epicId);
   const workspaceName = `inc-${epicId}`;
 
-  const workspacesBaseDir = join(projectRoot, ".inc", "workspaces");
-  await mkdir(workspacesBaseDir, { recursive: true });
+  await mkdir(dirname(workspacePath), { recursive: true });
 
   if (await isValidJjWorkspace(workspacePath, workspaceName, projectRoot)) {
     return { success: true, workspacePath };
@@ -154,8 +162,7 @@ export async function createTaskWorkspace(
   const workspacePath = getTaskWorkspacePath(projectRoot, epicId, taskId);
   const workspaceName = `inc-${epicId}-task-${taskId}`;
 
-  const workspacesDir = getWorkspacesDir(projectRoot, epicId);
-  await mkdir(workspacesDir, { recursive: true });
+  await mkdir(dirname(workspacePath), { recursive: true });
 
   if (await isValidJjWorkspace(workspacePath, workspaceName, projectRoot)) {
     return { success: true, workspacePath };
@@ -274,8 +281,30 @@ export async function squashTaskIntoEpic(
   epicId: string,
   taskId: number
 ): Promise<{ success: boolean; error?: string }> {
-  const taskWorkspace = `inc-${epicId}-task-${taskId}@`;
+  const taskWorkspaceName = `inc-${epicId}-task-${taskId}`;
+  const taskWorkspace = `${taskWorkspaceName}@`;
   const epicWorkspace = `inc-${epicId}@`;
+
+  const workspaces = await listWorkspaces(projectRoot);
+  const taskWsExists = workspaces.some((ws) => ws.name === taskWorkspaceName);
+  if (!taskWsExists) {
+    return {
+      success: false,
+      error: `Task workspace ${taskWorkspaceName} does not exist`,
+    };
+  }
+
+  const checkResult = await runJj(
+    ["log", "-r", taskWorkspace, "--no-graph", "-T", "change_id"],
+    { cwd: projectRoot }
+  );
+  if (!checkResult.success || !checkResult.stdout.trim()) {
+    await runJj(["workspace", "forget", taskWorkspaceName], { cwd: projectRoot });
+    return {
+      success: false,
+      error: `Task workspace ${taskWorkspaceName} has no valid working-copy commit`,
+    };
+  }
 
   const rebaseResult = await runJj(
     ["rebase", "-r", taskWorkspace, "-d", epicWorkspace],
@@ -301,7 +330,7 @@ export async function squashTaskIntoEpic(
     };
   }
 
-  await runJj(["abandon", taskWorkspace], { cwd: projectRoot });
+  await runJj(["workspace", "forget", taskWorkspaceName], { cwd: projectRoot });
   return { success: true };
 }
 

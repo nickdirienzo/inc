@@ -7,7 +7,8 @@ export function getCoderPrompt(
   epicDescription: string,
   taskId: number,
   taskName: string,
-  taskDescription: string
+  taskDescription: string,
+  epicDir: string
 ): string {
   return `# Identity
 
@@ -93,7 +94,7 @@ The Tech Lead will review and either clarify or reassign.
 
 # Context Files
 
-These files are in .inc/epics/${epicId}/:
+These files are in ${epicDir}:
 - architecture.md - Technical plan from Tech Lead (READ THIS FIRST)
 - spec.md - Product spec from PM
 

@@ -249,9 +249,35 @@ export async function removeDaemonPid(projectRoot: string): Promise<void> {
 // Initialization
 // ============================================================================
 
+export interface ProjectMetadata {
+  projectRoot: string;
+  projectName: string;
+  createdAt: string;
+}
+
+export async function readProjectMetadata(projectRoot: string): Promise<ProjectMetadata | null> {
+  return readJson<ProjectMetadata>(paths.getProjectMetadataPath(projectRoot));
+}
+
+export async function writeProjectMetadata(projectRoot: string, metadata: ProjectMetadata): Promise<void> {
+  await writeJson(paths.getProjectMetadataPath(projectRoot), metadata);
+}
+
 export async function initIncDir(projectRoot: string): Promise<void> {
-  await ensureDir(paths.getIncDir(projectRoot));
+  await ensureDir(paths.getProjectIncDir(projectRoot));
   await ensureDir(paths.getEpicsDir(projectRoot));
+  await ensureDir(paths.getWorkspacesDir(projectRoot));
+
+  // Write project metadata if it doesn't exist
+  const existingMetadata = await readProjectMetadata(projectRoot);
+  if (!existingMetadata) {
+    const projectName = projectRoot.split("/").pop() || "unknown";
+    await writeProjectMetadata(projectRoot, {
+      projectRoot,
+      projectName,
+      createdAt: new Date().toISOString(),
+    });
+  }
 }
 
 export async function createConflictResolutionEpic(
