@@ -10,6 +10,7 @@ import { abandonCommand } from "./commands/abandon.js";
 import { daemonCommand } from "./commands/daemon.js";
 import { tuiCommand } from "./commands/tui.js";
 import { taskCommand } from "./commands/task.js";
+import { attentionCommand } from "./commands/attention.js";
 
 const program = new Command();
 
@@ -26,5 +27,7 @@ program.addCommand(approveCommand);
 program.addCommand(abandonCommand);
 program.addCommand(daemonCommand);
 program.addCommand(tuiCommand);
+program.addCommand(taskCommand);
+program.addCommand(attentionCommand);
 
 program.parse();
