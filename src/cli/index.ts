@@ -8,7 +8,7 @@ import { statusCommand } from "./commands/status.js";
 import { approveCommand } from "./commands/approve.js";
 import { abandonCommand } from "./commands/abandon.js";
 import { daemonCommand } from "./commands/daemon.js";
-import { abandonCommand } from "./commands/abandon.js";
+import { tuiCommand } from "./commands/tui.js";
 
 const program = new Command();
 
@@ -24,6 +24,6 @@ program.addCommand(statusCommand);
 program.addCommand(approveCommand);
 program.addCommand(abandonCommand);
 program.addCommand(daemonCommand);
-program.addCommand(abandonCommand);
+program.addCommand(tuiCommand);
 
 program.parse();
