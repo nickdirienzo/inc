@@ -32,6 +32,9 @@ import { AgentLogger } from "../agents/logging.js";
 
 const projectRoot = process.argv[2] || process.cwd();
 
+const EM_INTERVAL = 30_000;
+const STUCK_AGENT_THRESHOLD = 10 * 60 * 1000; // 10 minutes
+
 // Track active agents
 const activeAgents = new Map<string, ActiveAgent>();
 
@@ -323,6 +326,59 @@ async function spawnCoderAgent(mission: Mission, task: Task): Promise<void> {
   }
 }
 
+async function runEngineeringManager(): Promise<void> {
+  log("[EM] Running engineering manager tick");
+
+  const now = Date.now();
+
+  // Check for stuck agents and clean them up
+  for (const [agentKey, agent] of activeAgents.entries()) {
+    const agentAge = now - new Date(agent.started_at).getTime();
+    if (agentAge > STUCK_AGENT_THRESHOLD) {
+      log(`[EM] Agent ${agentKey} appears stuck (running for ${Math.round(agentAge / 60000)}m), removing from tracking`);
+      activeAgents.delete(agentKey);
+
+      // If it's a coder, reset the task to not_started so it can be picked up again
+      if (agent.role === "coder" && agent.task_id) {
+        const tasksFile = await readTasks(projectRoot, agent.mission_id);
+        if (tasksFile) {
+          const task = tasksFile.tasks.find((t) => t.id === agent.task_id);
+          if (task && task.status === "in_progress") {
+            log(`[EM] Resetting stuck task ${task.id} to not_started`);
+            task.status = "not_started";
+            task.assignee = null;
+            await writeTasks(projectRoot, agent.mission_id, tasksFile);
+          }
+        }
+      }
+    }
+  }
+
+  // Check for in_progress tasks with no active agent
+  const missionIds = await listMissions(projectRoot);
+  for (const missionId of missionIds) {
+    const tasksFile = await readTasks(projectRoot, missionId);
+    if (!tasksFile) continue;
+
+    for (const task of tasksFile.tasks) {
+      if (task.status === "in_progress") {
+        const agentKey = `coder:${missionId}:${task.id}`;
+        if (!activeAgents.has(agentKey)) {
+          log(`[EM] Task ${task.id} is in_progress but has no agent, resetting to not_started`);
+          task.status = "not_started";
+          task.assignee = null;
+          await writeTasks(projectRoot, missionId, tasksFile);
+        }
+      }
+    }
+  }
+
+  await updateDaemonState();
+
+  // Now spawn any needed agents
+  await checkAndSpawnAgents();
+}
+
 async function checkAndSpawnAgents(): Promise<void> {
   const missionIds = await listMissions(projectRoot);
 
@@ -414,8 +470,15 @@ async function checkAndSpawnAgents(): Promise<void> {
 async function main(): Promise<void> {
   log(`Strike daemon starting in ${projectRoot}`);
 
-  // Initial check
-  await checkAndSpawnAgents();
+  // Initial EM run
+  await runEngineeringManager();
+
+  // Start EM interval
+  const emInterval = setInterval(() => {
+    runEngineeringManager().catch((err) => {
+      log(`[EM] Error during tick: ${err}`);
+    });
+  }, EM_INTERVAL);
 
   // Watch for changes
   const missionsDir = getMissionsDir(projectRoot);
@@ -426,6 +489,9 @@ async function main(): Promise<void> {
   });
 
   watcher.on("all", async (event, path) => {
+    if (path.includes("/logs/")) {
+      return;
+    }
     log(`File ${event}: ${path}`);
     await checkAndSpawnAgents();
   });
@@ -433,12 +499,14 @@ async function main(): Promise<void> {
   // Handle shutdown
   process.on("SIGTERM", () => {
     log("Received SIGTERM, shutting down");
+    clearInterval(emInterval);
     watcher.close();
     process.exit(0);
   });
 
   process.on("SIGINT", () => {
     log("Received SIGINT, shutting down");
+    clearInterval(emInterval);
     watcher.close();
     process.exit(0);
   });
