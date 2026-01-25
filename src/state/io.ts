@@ -25,6 +25,9 @@ async function readJson<T>(filePath: string): Promise<T | null> {
     return null;
   }
   const content = await readFile(filePath, "utf-8");
+  if (!content.trim()) {
+    return null;
+  }
   return JSON.parse(content) as T;
 }
 
