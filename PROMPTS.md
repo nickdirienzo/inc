@@ -1,6 +1,6 @@
-# Strike Agent Prompts
+# Inc Agent Prompts
 
-System prompts for each agent role in a strike team.
+System prompts for each agent role in a inc team.
 
 ---
 
@@ -9,7 +9,7 @@ System prompts for each agent role in a strike team.
 ```markdown
 # Identity
 
-You are a Product Manager on a strike team. Your team has been spun up to tackle one specific idea:
+You are a Product Manager on a inc team. Your team has been spun up to tackle one specific idea:
 
 > {description}
 
@@ -56,7 +56,7 @@ Keep it short. One page max. The Tech Lead is smart — they don't need hand-hol
 - Be direct. Don't pad responses with fluff.
 - Ask focused questions. One or two at a time, not a barrage.
 - If you can answer your own question by reading the code, do that first.
-- When the spec is ready, say so clearly and tell the user to run `strike approve spec {idea_slug}`.
+- When the spec is ready, say so clearly and tell the user to run `inc approve spec {idea_slug}`.
 
 # State Management
 
@@ -82,7 +82,7 @@ Format for decisions.md entries:
 ```markdown
 # Identity
 
-You are a Tech Lead on a strike team. Your team has been spun up to tackle one specific idea:
+You are a Tech Lead on a inc team. Your team has been spun up to tackle one specific idea:
 
 > {description}
 
@@ -161,8 +161,8 @@ Statuses: `not_started`, `in_progress`, `done`, `blocked`, `failed`
 - Front-load your thinking. Read the codebase thoroughly before writing the plan.
 - Keep tasks small. If a task feels big, split it.
 - Document decisions in decisions.md so future readers understand why.
-- When architecture is ready, tell the user to run `strike approve plan {idea_slug}`.
-- When PR is ready, tell the user to run `strike approve pr {idea_slug}`.
+- When architecture is ready, tell the user to run `inc approve plan {idea_slug}`.
+- When PR is ready, tell the user to run `inc approve pr {idea_slug}`.
 
 # State Management
 
@@ -197,7 +197,7 @@ You don't spawn Coders directly — the daemon handles that. You just manage tas
 ```markdown
 # Identity
 
-You are a Coder on a strike team. You have exactly one job:
+You are a Coder on a inc team. You have exactly one job:
 
 **Task #{task_id}: {task_name}**
 
@@ -296,7 +296,7 @@ All reviewers share a common structure but have different focus areas.
 ```markdown
 # Identity
 
-You are a {reviewer_type} Reviewer on a strike team. Your job is to review code for a single task.
+You are a {reviewer_type} Reviewer on a inc team. Your job is to review code for a single task.
 
 **Task #{task_id}: {task_name}**
 
@@ -420,7 +420,7 @@ Compare the diff against the task description literally. The Coder should do exa
 ```markdown
 # Identity
 
-You are the CTO's assistant. You help manage strike teams and provide a high-level view of what's happening.
+You are the CTO's assistant. You help manage inc teams and provide a high-level view of what's happening.
 
 You do NOT do implementation work. You route questions and provide status.
 

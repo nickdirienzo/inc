@@ -1,4 +1,4 @@
-# Strike: Agent Orchestration for Small Teams
+# Inc: Agent Orchestration for Small Teams
 
 ## The Problem
 
@@ -19,16 +19,16 @@ We've already solved these problems with human organizations. The org chart exis
 - **Tech Lead**: Makes architecture decisions, breaks work into tasks, reviews code
 - **Engineers**: Execute well-scoped tasks, escalate when stuck
 
-The insight: agents don't have human ramp-up costs. They can read ADRs, grep the codebase, and understand the domain in seconds. So we can form **strike teams** around problems (not domains) that spin up, execute, and dissolve.
+The insight: agents don't have human ramp-up costs. They can read ADRs, grep the codebase, and understand the domain in seconds. So we can form **inc teams** around problems (not domains) that spin up, execute, and dissolve.
 
-Conway's Law inverts: instead of your architecture mirroring your org structure, your org structure (strike teams) mirrors the problem structure.
+Conway's Law inverts: instead of your architecture mirroring your org structure, your org structure (inc teams) mirrors the problem structure.
 
 ## Architecture
 
 ```
 You (CTO - vision, taste, final approval)
  │
- └── CLI (`strike` commands)
+ └── CLI (`inc` commands)
       │
       ├── Daemon (background process)
       │    ├── Heartbeat monitor
@@ -36,7 +36,7 @@ You (CTO - vision, taste, final approval)
       │    ├── Webhook routing (GitHub → teams)
       │    └── State file management
       │
-      └── Strike Teams (one per idea)
+      └── Inc Teams (one per idea)
            │
            ├── PM Agent
            │    ├── Takes vague input, asks clarifying questions
@@ -67,10 +67,10 @@ You (CTO - vision, taste, final approval)
 
 ## State Schema
 
-Each idea lives in `.strike/ideas/<idea-slug>/`:
+Each idea lives in `.inc/ideas/<idea-slug>/`:
 
 ```
-.strike/
+.inc/
   config.json              # global config (model preferences, project root)
   daemon.pid               # daemon process ID
   daemon.log               # daemon logs
@@ -196,7 +196,7 @@ Per-task review verdicts, written by daemon as reviewers complete:
 }
 ```
 
-Stored in `.strike/ideas/<idea>/reviews/task-<id>.json`
+Stored in `.inc/ideas/<idea>/reviews/task-<id>.json`
 
 ### decisions.md
 
@@ -226,28 +226,28 @@ Using React.lazy instead of dynamic imports for consistency with existing patter
 
 ```bash
 # Daemon
-strike daemon start           # start background daemon
-strike daemon stop            # stop daemon  
-strike daemon status          # is it running?
+inc daemon start           # start background daemon
+inc daemon stop            # stop daemon  
+inc daemon status          # is it running?
 
 # Ideas
-strike new "<description>"    # create idea, start PM conversation
-strike status                 # show all ideas + progress
-strike chat [idea-slug]       # talk to CTO (no arg) or idea's PM
-strike logs <idea-slug>       # tail agent activity
+inc new "<description>"    # create idea, start PM conversation
+inc status                 # show all ideas + progress
+inc chat [idea-slug]       # talk to CTO (no arg) or idea's PM
+inc logs <idea-slug>       # tail agent activity
 
 # Approvals  
-strike approve spec <idea>    # approve PM's spec → planning
-strike approve plan <idea>    # approve Tech Lead's plan → coding
-strike approve pr <idea>      # final blessing → team review
+inc approve spec <idea>    # approve PM's spec → planning
+inc approve plan <idea>    # approve Tech Lead's plan → coding
+inc approve pr <idea>      # final blessing → team review
 
 # Debugging
-strike inspect <idea>         # dump full state
-strike kill <idea>            # stop all agents for an idea
-strike retry <idea> [task-id] # retry a failed task
+inc inspect <idea>         # dump full state
+inc kill <idea>            # stop all agents for an idea
+inc retry <idea> [task-id] # retry a failed task
 ```
 
-### `strike status` output
+### `inc status` output
 
 ```
 STRIKE TEAMS
@@ -260,16 +260,16 @@ NEEDS ATTENTION
 
   billing: PM asks "should notifications go to all users or just admins?"
 
-Run `strike chat billing` to respond.
+Run `inc chat billing` to respond.
 ```
 
-### `strike chat` flow
+### `inc chat` flow
 
 No argument → talk to CTO agent (status, prioritization, general questions)
 With idea slug → talk to that idea's PM (or Tech Lead if past spec phase)
 
 ```
-$ strike chat billing
+$ inc chat billing
 
 You: just admins for now, we can expand later
 
@@ -278,7 +278,7 @@ PM: Got it. I'll update the spec to scope notifications to admin users
     
     Spec updated. Ready for your approval.
 
-Run `strike approve spec billing` to proceed to planning.
+Run `inc approve spec billing` to proceed to planning.
 ```
 
 ## Agent Roles Summary
@@ -385,7 +385,7 @@ When any agent session ends:
 
 Each idea gets a worktree:
 ```bash
-jj workspace add .strike/worktrees/dashboard-perf
+jj workspace add .inc/worktrees/dashboard-perf
 ```
 
 Each Coder works in an isolated commit:
@@ -404,7 +404,7 @@ jj rebase -d main  # when ready for PR
 ## Project Structure
 
 ```
-/strike
+/inc
   /src
     /daemon
       index.ts           # main daemon entry
@@ -456,7 +456,7 @@ jj rebase -d main  # when ready for PR
 
 ## Success Criteria
 
-1. Can run `strike new "make dashboard faster"` and have a PM conversation
+1. Can run `inc new "make dashboard faster"` and have a PM conversation
 2. Can approve spec and have Tech Lead produce architecture + tasks
 3. Can watch Coders execute tasks without any permission prompts
 4. Can see PR appear with all work squashed
