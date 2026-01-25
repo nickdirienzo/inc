@@ -371,11 +371,13 @@ async function checkAndSpawnAgents(): Promise<void> {
             await writeMission(projectRoot, mission);
             continue;
           }
-          log(`Mission workspace ready at ${wsResult.workspacePath}`);
 
-          // Store workspace path in mission.json
-          mission.workspace_path = wsResult.workspacePath;
-          await writeMission(projectRoot, mission);
+          // Only update mission.json if workspace path changed (avoid infinite loop)
+          if (mission.workspace_path !== wsResult.workspacePath) {
+            log(`Mission workspace ready at ${wsResult.workspacePath}`);
+            mission.workspace_path = wsResult.workspacePath;
+            await writeMission(projectRoot, mission);
+          }
         }
 
         // Find tasks that need coders
