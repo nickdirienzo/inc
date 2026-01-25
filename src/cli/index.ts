@@ -9,6 +9,7 @@ import { approveCommand } from "./commands/approve.js";
 import { abandonCommand } from "./commands/abandon.js";
 import { daemonCommand } from "./commands/daemon.js";
 import { tuiCommand } from "./commands/tui.js";
+import { taskCommand } from "./commands/task.js";
 
 const program = new Command();
 

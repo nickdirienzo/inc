@@ -288,10 +288,7 @@ export async function squashTaskIntoEpic(
   const workspaces = await listWorkspaces(projectRoot);
   const taskWsExists = workspaces.some((ws) => ws.name === taskWorkspaceName);
   if (!taskWsExists) {
-    return {
-      success: false,
-      error: `Task workspace ${taskWorkspaceName} does not exist`,
-    };
+    return { success: true };
   }
 
   const checkResult = await runJj(
@@ -331,6 +328,13 @@ export async function squashTaskIntoEpic(
   }
 
   await runJj(["workspace", "forget", taskWorkspaceName], { cwd: projectRoot });
+
+  const taskWorkspacePath = getTaskWorkspacePath(projectRoot, epicId, taskId);
+  try {
+    await rm(taskWorkspacePath, { recursive: true, force: true });
+  } catch {
+  }
+
   return { success: true };
 }
 

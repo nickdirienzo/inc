@@ -15,10 +15,14 @@ import {
   readTasks,
   writeTasks,
   writeDaemonState,
+  getPendingRequests,
+  completeRequest,
+  initRequestsDir,
   type Epic,
   type Task,
   type DaemonState,
   type ActiveAgent,
+  type QueueRequest,
 } from "../state/index.js";
 import { getPmPrompt, getTechLeadPrompt, getCoderPrompt } from "../prompts/index.js";
 import {
@@ -63,6 +67,65 @@ const STUCK_AGENT_THRESHOLD = 10 * 60 * 1000; // 10 minutes
 
 // Track active agents
 const activeAgents = new Map<string, ActiveAgent>();
+
+// Task write queue for serialization
+type TaskWriteOp = {
+  epicId: string;
+  taskId: number;
+  update: Partial<Pick<Task, "status" | "feedback" | "assignee" | "jj_commit">>;
+  resolve: (success: boolean) => void;
+};
+const taskWriteQueue: TaskWriteOp[] = [];
+let taskWriteProcessing = false;
+
+async function processTaskWriteQueue(): Promise<void> {
+  if (taskWriteProcessing) return;
+  taskWriteProcessing = true;
+
+  while (taskWriteQueue.length > 0) {
+    const op = taskWriteQueue.shift()!;
+    try {
+      const tasksFile = await readTasks(projectRoot, op.epicId);
+      if (!tasksFile) {
+        log(`[TaskQueue] No tasks file for ${op.epicId}`);
+        op.resolve(false);
+        continue;
+      }
+
+      const task = tasksFile.tasks.find((t) => t.id === op.taskId);
+      if (!task) {
+        log(`[TaskQueue] Task ${op.taskId} not found in ${op.epicId}`);
+        op.resolve(false);
+        continue;
+      }
+
+      if (op.update.status !== undefined) task.status = op.update.status;
+      if (op.update.feedback !== undefined) task.feedback = op.update.feedback;
+      if (op.update.assignee !== undefined) task.assignee = op.update.assignee;
+      if (op.update.jj_commit !== undefined) task.jj_commit = op.update.jj_commit;
+
+      await writeTasks(projectRoot, op.epicId, tasksFile);
+      log(`[TaskQueue] Updated task ${op.taskId} in ${op.epicId}`);
+      op.resolve(true);
+    } catch (error) {
+      log(`[TaskQueue] Error updating task ${op.taskId}: ${error}`);
+      op.resolve(false);
+    }
+  }
+
+  taskWriteProcessing = false;
+}
+
+function queueTaskUpdate(
+  epicId: string,
+  taskId: number,
+  update: Partial<Pick<Task, "status" | "feedback" | "assignee" | "jj_commit">>
+): Promise<boolean> {
+  return new Promise((resolve) => {
+    taskWriteQueue.push({ epicId, taskId, update, resolve });
+    processTaskWriteQueue();
+  });
+}
 
 function log(message: string): void {
   const timestamp = new Date().toISOString();
@@ -259,16 +322,8 @@ async function spawnCoderAgent(epic: Epic, task: Task): Promise<void> {
     log(`Workspace created at ${workspacePath}`);
   }
 
-  // Mark task as in_progress
-  const tasksFile = await readTasks(projectRoot, epic.id);
-  if (tasksFile) {
-    const t = tasksFile.tasks.find((t) => t.id === task.id);
-    if (t) {
-      t.status = "in_progress";
-      t.assignee = `coder-${Date.now()}`;
-      await writeTasks(projectRoot, epic.id, tasksFile);
-    }
-  }
+  // Task status is updated by checkAndSpawnAgents before calling this function
+  // to avoid race conditions with concurrent writes
 
   const agent: ActiveAgent = {
     epic_id: epic.id,
@@ -341,21 +396,15 @@ async function spawnCoderAgent(epic: Epic, task: Task): Promise<void> {
     }
 
     // Mark task as done (Tech Lead will review)
-    const updatedTasks = await readTasks(projectRoot, epic.id);
-    if (updatedTasks) {
-      const t = updatedTasks.tasks.find((t) => t.id === task.id);
-      if (t) {
-        // Check if blocked
-        if (result.toLowerCase().includes("blocked:")) {
-          t.status = "blocked";
-          t.feedback = result;
-        } else {
-          t.status = "done";
-        }
-        await writeTasks(projectRoot, epic.id, updatedTasks);
+    const isBlocked = result.toLowerCase().includes("blocked:");
+    const newStatus = isBlocked ? "blocked" : "done";
+    await queueTaskUpdate(epic.id, task.id, {
+      status: newStatus,
+      feedback: isBlocked ? result : undefined,
+    });
 
-        // If task is done and we're using jj, squash task into epic workspace
-        if (t.status === "done" && useJjWorkspace) {
+    // If task is done and we're using jj, squash task into epic workspace
+    if (newStatus === "done" && useJjWorkspace) {
           log(`Squashing task ${task.id} into epic workspace for ${epic.id}`);
           const squashResult = await squashTaskIntoEpic(
             projectRoot,
@@ -376,22 +425,15 @@ async function spawnCoderAgent(epic: Epic, task: Task): Promise<void> {
           } else {
             log(`Successfully squashed task ${task.id} into epic workspace`);
           }
-        }
-      }
     }
   } catch (error) {
     log(`Coder agent failed for task ${task.id} in ${epic.id}: ${error}`);
 
     // Mark task as failed
-    const failedTasks = await readTasks(projectRoot, epic.id);
-    if (failedTasks) {
-      const t = failedTasks.tasks.find((t) => t.id === task.id);
-      if (t) {
-        t.status = "failed";
-        t.feedback = String(error);
-        await writeTasks(projectRoot, epic.id, failedTasks);
-      }
-    }
+    await queueTaskUpdate(epic.id, task.id, {
+      status: "failed",
+      feedback: String(error),
+    });
   } finally {
     await logger.close();
     activeAgents.delete(agentKey);
@@ -399,8 +441,37 @@ async function spawnCoderAgent(epic: Epic, task: Task): Promise<void> {
   }
 }
 
+async function processQueueRequests(): Promise<void> {
+  const requests = await getPendingRequests(projectRoot);
+
+  for (const { id, request } of requests) {
+    log(`[Queue] Processing request ${id}: ${request.type}`);
+
+    try {
+      switch (request.type) {
+        case "task-status": {
+          const success = await queueTaskUpdate(request.epicId, request.taskId, {
+            status: request.status,
+            feedback: request.feedback,
+            assignee: request.assignee,
+          });
+          await completeRequest(projectRoot, id, { success });
+          break;
+        }
+        default:
+          await completeRequest(projectRoot, id, { success: false, error: `Unknown request type: ${(request as QueueRequest).type}` });
+      }
+    } catch (error) {
+      log(`[Queue] Error processing request ${id}: ${error}`);
+      await completeRequest(projectRoot, id, { success: false, error: String(error) });
+    }
+  }
+}
+
 async function runEngineeringManager(): Promise<void> {
   log("[EM] Running engineering manager tick");
+
+  await processQueueRequests();
 
   const now = Date.now();
 
@@ -416,16 +487,11 @@ async function runEngineeringManager(): Promise<void> {
 
       // If it's a coder, reset the task to not_started so it can be picked up again
       if (agent.role === "coder" && agent.task_id) {
-        const tasksFile = await readTasks(projectRoot, agent.epic_id);
-        if (tasksFile) {
-          const task = tasksFile.tasks.find((t) => t.id === agent.task_id);
-          if (task && task.status === "in_progress") {
-            log(`[EM] Resetting stuck task ${task.id} to not_started`);
-            task.status = "not_started";
-            task.assignee = null;
-            await writeTasks(projectRoot, agent.epic_id, tasksFile);
-          }
-        }
+        log(`[EM] Resetting stuck task ${agent.task_id} to not_started`);
+        await queueTaskUpdate(agent.epic_id, agent.task_id, {
+          status: "not_started",
+          assignee: null,
+        });
       }
     }
   }
@@ -441,9 +507,10 @@ async function runEngineeringManager(): Promise<void> {
         const agentKey = `coder:${epicId}:${task.id}`;
         if (!activeAgents.has(agentKey)) {
           log(`[EM] Task ${task.id} is in_progress but has no agent, resetting to not_started`);
-          task.status = "not_started";
-          task.assignee = null;
-          await writeTasks(projectRoot, epicId, tasksFile);
+          await queueTaskUpdate(epicId, task.id, {
+            status: "not_started",
+            assignee: null,
+          });
         }
       }
     }
@@ -566,6 +633,8 @@ async function checkAndSpawnAgents(): Promise<void> {
         // Find tasks that need coders
         const tasksFile = await readTasks(projectRoot, epicId);
         if (tasksFile) {
+          const tasksToSpawn: { epic: Epic; task: typeof tasksFile.tasks[0] }[] = [];
+
           for (const task of tasksFile.tasks) {
             if (task.status === "not_started") {
               // Check if blocked by other tasks
@@ -575,9 +644,19 @@ async function checkAndSpawnAgents(): Promise<void> {
               });
 
               if (blockers.length === 0) {
-                spawnCoderAgent(epic, task);
+                tasksToSpawn.push({ epic, task });
               }
             }
+          }
+
+          // Mark tasks as in_progress through queue, then spawn agents
+          for (const { epic, task } of tasksToSpawn) {
+            const assignee = `coder-${Date.now()}`;
+            await queueTaskUpdate(epicId, task.id, {
+              status: "in_progress",
+              assignee,
+            });
+            spawnCoderAgent(epic, task);
           }
 
           // Check if all tasks are done
@@ -604,6 +683,8 @@ async function checkAndSpawnAgents(): Promise<void> {
 
 async function main(): Promise<void> {
   log(`Inc daemon starting in ${projectRoot}`);
+
+  await initRequestsDir(projectRoot);
 
   // Initial EM run
   await runEngineeringManager();
