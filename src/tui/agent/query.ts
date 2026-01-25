@@ -14,6 +14,16 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const INC_PLUGIN_PATH = join(__dirname, "..", "..", "..");
 
+let currentSessionId: string | null = null;
+
+export function getSessionId(): string | null {
+  return currentSessionId;
+}
+
+export function clearSession(): void {
+  currentSessionId = null;
+}
+
 /**
  * Response types from the agent
  */
@@ -45,6 +55,7 @@ export async function* executeTuiAgentQuery(
       allowedTools: tools,
       permissionMode: "acceptEdits",
       plugins: [{ type: "local", path: INC_PLUGIN_PATH }],
+      ...(currentSessionId ? { resume: currentSessionId } : {}),
     };
 
     let responseText = "";
@@ -55,13 +66,15 @@ export async function* executeTuiAgentQuery(
       options: queryOptions,
     })) {
       // Handle different message types
+      if ("session_id" in message && message.session_id) {
+        currentSessionId = message.session_id;
+      }
+
       if (message.type === "assistant") {
-        // Extract text from assistant message blocks
         const betaMessage = message.message;
         for (const block of betaMessage.content) {
           if (block.type === "text") {
             responseText += block.text;
-            // Yield text chunks as they arrive
             yield { type: 'text', content: block.text };
           }
         }

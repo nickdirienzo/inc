@@ -54,21 +54,24 @@ function groupEpicsByProject(epics: EpicWithProject[]): Map<string, EpicWithProj
 export function EpicOverview({ epics, needsAttention }: EpicOverviewProps) {
   const groupedEpics = groupEpicsByProject(epics);
 
+  const maxNeedsAttention = needsAttention.slice(0, 3);
+
   return (
-    <Box flexDirection="column" paddingX={1}>
+    <Box flexDirection="column" paddingX={1} overflow="hidden">
       {/* Needs Attention Section */}
-      {needsAttention.length > 0 && (
-        <Box flexDirection="column" marginBottom={1}>
+      {maxNeedsAttention.length > 0 && (
+        <Box flexDirection="column" marginBottom={1} overflow="hidden">
           <Box
             borderStyle="double"
             borderColor="yellow"
             paddingX={1}
             paddingY={1}
             flexDirection="column"
+            overflow="hidden"
           >
             <Text bold color="yellow">⚠️  NEEDS ATTENTION</Text>
-            <Box flexDirection="column">
-              {needsAttention.map((epic) => {
+            <Box flexDirection="column" overflow="hidden">
+              {maxNeedsAttention.map((epic) => {
                 const shortId = epic.shortId ?? epic.id.slice(0, 8);
                 return (
                 <Box key={epic.id} flexDirection="column" marginBottom={1}>
@@ -85,7 +88,7 @@ export function EpicOverview({ epics, needsAttention }: EpicOverviewProps) {
                   </Box>
                   {epic.needs_attention && (
                     <Box paddingLeft={3}>
-                      <Text color="white">
+                      <Text color="white" wrap="truncate">
                         {epic.needs_attention.from}: {epic.needs_attention.question}
                       </Text>
                     </Box>
@@ -104,9 +107,10 @@ export function EpicOverview({ epics, needsAttention }: EpicOverviewProps) {
         paddingX={1}
         paddingY={1}
         flexDirection="column"
+        overflow="hidden"
       >
         <Text bold color="cyan">📋 EPICS</Text>
-        <Box flexDirection="column">
+        <Box flexDirection="column" overflow="hidden">
           {groupedEpics.size === 0 ? (
             <Text color="gray" dimColor>
               No epics found. Run 'inc new "your epic"' to create one.

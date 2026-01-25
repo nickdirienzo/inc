@@ -306,9 +306,9 @@ export function App() {
   }
 
   return (
-    <Box flexDirection="column" width="100%" height="100%">
+    <Box flexDirection="column" width="100%" height="100%" overflow="hidden">
       {/* Top 40%: Epic Overview */}
-      <Box height="40%" flexDirection="column">
+      <Box height="40%" flexDirection="column" overflow="hidden">
         <EpicOverview
           epics={state.epics.epics}
           needsAttention={state.epics.needsAttention}
@@ -316,11 +316,12 @@ export function App() {
       </Box>
 
       {/* Bottom 60%: Chat and Context Pane */}
-      <Box height="60%" flexDirection="row">
+      <Box height="60%" flexDirection="row" overflow="hidden">
         {/* Bottom-left: Chat Interface (60% width or 100% if no context pane) */}
         <Box
           width={state.contextFile ? "60%" : "100%"}
           flexDirection="column"
+          overflow="hidden"
         >
           <ChatInterface
             messages={state.messages}
