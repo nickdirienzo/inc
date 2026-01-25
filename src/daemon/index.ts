@@ -458,6 +458,26 @@ async function processQueueRequests(): Promise<void> {
           await completeRequest(projectRoot, id, { success });
           break;
         }
+        case "attention": {
+          const epic = await readEpic(projectRoot, request.epicId);
+          if (!epic) {
+            await completeRequest(projectRoot, id, { success: false, error: `Epic ${request.epicId} not found` });
+            break;
+          }
+
+          log(`[Queue] Setting attention for ${request.epicId}: ${request.from} -> ${request.to}`);
+
+          epic.needs_attention = {
+            from: request.from,
+            to: request.to,
+            question: request.question,
+            escalation_count: epic.needs_attention?.escalation_count || 0,
+          };
+
+          await writeEpic(projectRoot, epic);
+          await completeRequest(projectRoot, id, { success: true });
+          break;
+        }
         default:
           await completeRequest(projectRoot, id, { success: false, error: `Unknown request type: ${(request as QueueRequest).type}` });
       }
@@ -580,8 +600,61 @@ async function checkAndSpawnAgents(): Promise<void> {
     const epic = await readEpic(projectRoot, epicId);
     if (!epic) continue;
 
-    // Skip if needs user attention
+    // Handle attention routing
     if (epic.needs_attention) {
+      const to = epic.needs_attention.to || "user";
+
+      if (to === "user") {
+        // Skip this epic - user needs to respond (current behavior)
+        continue;
+      }
+
+      // Route to agent
+      log(`[EM] Routing attention from ${epic.needs_attention.from} to ${to} for epic ${epicId}: ${epic.needs_attention.question}`);
+
+      switch (to) {
+        case "em":
+          // Handle EM attention requests (auto-approval logic)
+          const question = epic.needs_attention.question.toLowerCase();
+          if (question.includes("approve") && question.includes("spec") && epic.status === "spec_complete") {
+            log(`[EM] Auto-approving spec for epic ${epicId}`);
+            epic.status = "plan_in_progress";
+            epic.needs_attention = undefined;
+            await writeEpic(projectRoot, epic);
+          } else {
+            log(`[EM] Cannot handle question, escalating to user`);
+            epic.needs_attention = {
+              from: "em",
+              to: "user",
+              question: `EM cannot handle: ${epic.needs_attention.question}`,
+              escalation_count: (epic.needs_attention.escalation_count || 0) + 1,
+            };
+            await writeEpic(projectRoot, epic);
+          }
+          break;
+
+        case "pm":
+          // Spawn PM agent to handle the attention request
+          // PM will read needs_attention and respond
+          spawnPmAgent(epic);
+          break;
+
+        case "tech_lead":
+          // Spawn Tech Lead agent to handle the attention request
+          spawnTechLeadAgent(epic);
+          break;
+
+        default:
+          log(`[EM] Unknown attention target: ${to}`);
+          epic.needs_attention = {
+            from: "em",
+            to: "user",
+            question: `Unknown attention target ${to}: ${epic.needs_attention.question}`,
+            escalation_count: (epic.needs_attention.escalation_count || 0) + 1,
+          };
+          await writeEpic(projectRoot, epic);
+      }
+
       continue;
     }
 

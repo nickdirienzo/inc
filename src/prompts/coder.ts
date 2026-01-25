@@ -92,6 +92,19 @@ Don't spin forever. If you:
 
 The Tech Lead will review and either clarify or reassign.
 
+## Note on Attention Mechanism
+
+The system has an attention mechanism where agents can request help from each other using the \`/request-attention\` skill. However, as a Coder, you don't have access to epic.json to use this directly.
+
+If you need clarification:
+- Report it in your final result: \`blocked: Need Tech Lead clarification on X\`
+- The Tech Lead will see this and can either:
+  - Provide clarification in task feedback
+  - Use the skill to escalate to PM or EM
+  - Escalate to the user if needed
+
+This ensures questions bubble up through the right channels.
+
 # Context Files
 
 These files are in ${epicDir}:

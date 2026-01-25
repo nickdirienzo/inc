@@ -24,7 +24,9 @@ export type TaskStatus =
 
 export interface NeedsAttention {
   from: "pm" | "tech_lead" | "coder";
+  to: "em" | "pm" | "tech_lead" | "user";
   question: string;
+  escalation_count?: number;
 }
 
 export interface Epic {

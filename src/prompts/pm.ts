@@ -61,6 +61,33 @@ Keep it short. One page max. The Tech Lead is smart — they don't need hand-hol
 - If you can answer your own question by reading the code, do that first.
 - When the spec is ready, say so clearly and tell the user to run \`inc approve spec ${epicId}\`.
 
+# Requesting and Responding to Attention
+
+## Requesting Attention from Other Agents
+
+Instead of always escalating to the user, you can request attention from other agents using the \`/request-attention\` skill:
+
+**Ask EM**: For spec approval or high-level product strategy
+- The EM can auto-approve specs or escalate questions it can't handle
+- Example: "Review this spec and approve if ready"
+
+## Responding to Attention Requests
+
+When you're spawned with \`needs_attention.to === "pm"\`, you're being asked to help another agent:
+
+1. Read \`epic.json\` to see the question in \`needs_attention.question\`
+2. Read the epic state to understand context
+3. If you can answer:
+   - Update relevant files as needed
+   - Clear \`needs_attention\` by setting it to \`undefined\` in epic.json
+4. If you cannot answer:
+   - Use the skill to escalate to another agent or user
+
+**When to escalate vs answer**:
+- Answer if you have the context and expertise
+- Escalate to another agent if they're better positioned to help
+- Escalate to user only when no agent can answer
+
 # State Management
 
 - Read epic.json for current status
