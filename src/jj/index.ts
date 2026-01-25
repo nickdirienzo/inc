@@ -314,53 +314,134 @@ export async function squashCommit(
 
 /**
  * Squash a task workspace into the mission workspace
+ *
+ * Since tasks branch from the same parent as the mission (they're siblings),
+ * we need to rebase the task onto the mission first, then squash.
  */
 export async function squashTaskIntoMission(
   projectRoot: string,
   missionId: string,
   taskId: number
 ): Promise<{ success: boolean; error?: string }> {
-  const fromWorkspace = `strike-${missionId}-task-${taskId}@`;
-  const intoWorkspace = `strike-${missionId}@`;
+  const taskWorkspace = `strike-${missionId}-task-${taskId}@`;
+  const missionWorkspace = `strike-${missionId}@`;
 
-  const result = await runJj(
-    ["squash", "--from", fromWorkspace, "--into", intoWorkspace],
+  // Rebase the task onto the mission workspace
+  const rebaseResult = await runJj(
+    ["rebase", "-r", taskWorkspace, "-d", missionWorkspace],
     { cwd: projectRoot }
   );
 
-  if (result.success) {
-    await runJj(["abandon", fromWorkspace], { cwd: projectRoot });
+  if (!rebaseResult.success) {
+    return {
+      success: false,
+      error: `Failed to rebase task onto mission: ${rebaseResult.stderr}`,
+    };
   }
 
-  return {
-    success: result.success,
-    error: result.success ? undefined : result.stderr,
-  };
+  // Squash the task into mission, keeping the mission's description
+  const squashResult = await runJj(
+    ["squash", "-r", taskWorkspace, "-u"],
+    { cwd: projectRoot }
+  );
+
+  if (!squashResult.success) {
+    return {
+      success: false,
+      error: `Failed to squash task: ${squashResult.stderr}`,
+    };
+  }
+
+  await runJj(["abandon", taskWorkspace], { cwd: projectRoot });
+  return { success: true };
 }
 
 /**
- * Squash the mission workspace commit into main
- * This is the final squash when approving a PR
+ * Squash all remaining task workspaces into the mission workspace.
+ */
+export async function squashAllTasksIntoMission(
+  projectRoot: string,
+  missionId: string
+): Promise<{ success: boolean; error?: string }> {
+  const workspaces = await listWorkspaces(projectRoot);
+  const taskPrefix = `strike-${missionId}-task-`;
+
+  const taskWorkspaces = workspaces
+    .filter((ws) => ws.name.startsWith(taskPrefix))
+    .map((ws) => {
+      const taskIdStr = ws.name.replace(taskPrefix, "");
+      return { name: ws.name, taskId: parseInt(taskIdStr, 10) };
+    })
+    .filter((ws) => !isNaN(ws.taskId))
+    .sort((a, b) => a.taskId - b.taskId);
+
+  for (const taskWs of taskWorkspaces) {
+    const result = await squashTaskIntoMission(projectRoot, missionId, taskWs.taskId);
+    if (!result.success) {
+      return {
+        success: false,
+        error: `Failed to squash task ${taskWs.taskId}: ${result.error}`,
+      };
+    }
+  }
+
+  return { success: true };
+}
+
+/**
+ * Squash the mission workspace commit into the default workspace
+ * This is the final squash when approving a PR - puts changes at HEAD
  */
 export async function squashMissionIntoMain(
   projectRoot: string,
   missionId: string
 ): Promise<{ success: boolean; error?: string }> {
-  const missionWorkspaceName = `strike-${missionId}`;
+  // First, squash any remaining tasks into the mission
+  const tasksResult = await squashAllTasksIntoMission(projectRoot, missionId);
+  if (!tasksResult.success) {
+    return tasksResult;
+  }
 
-  const result = await runJj(
-    ["squash", "--from", missionWorkspaceName],
+  const missionWorkspace = `strike-${missionId}@`;
+
+  // Get the mission's description to preserve it
+  const logResult = await runJj(
+    ["log", "-r", missionWorkspace, "--no-graph", "-T", "description"],
+    { cwd: projectRoot }
+  );
+  const missionDescription = logResult.success && logResult.stdout.trim()
+    ? logResult.stdout.trim()
+    : `feat: ${missionId}`;
+
+  // Rebase mission onto the default workspace's parent (@-)
+  // This puts the mission changes at the tip of our working branch
+  const rebaseResult = await runJj(
+    ["rebase", "-r", missionWorkspace, "-d", "@-"],
     { cwd: projectRoot }
   );
 
-  if (result.success) {
-    await runJj(["abandon", `${missionWorkspaceName}@`], { cwd: projectRoot });
+  if (!rebaseResult.success) {
+    return {
+      success: false,
+      error: `Failed to rebase mission onto HEAD: ${rebaseResult.stderr}`,
+    };
   }
 
-  return {
-    success: result.success,
-    error: result.success ? undefined : result.stderr,
-  };
+  // Squash mission into its parent with the mission description
+  const squashResult = await runJj(
+    ["squash", "-r", missionWorkspace, "-m", missionDescription],
+    { cwd: projectRoot }
+  );
+
+  if (!squashResult.success) {
+    return {
+      success: false,
+      error: `Failed to squash mission: ${squashResult.stderr}`,
+    };
+  }
+
+  await runJj(["abandon", missionWorkspace], { cwd: projectRoot });
+  return { success: true };
 }
 
 /**
