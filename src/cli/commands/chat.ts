@@ -342,6 +342,7 @@ export const chatCommand = new Command("chat")
         epicId,
         epic.description,
         projectRoot,
+        epicDir,
         taskId,
         recentSummaries,
         globalContext
@@ -492,6 +493,7 @@ async function getSystemPrompt(
   epicId: string,
   description: string,
   projectRoot: string,
+  epicDir: string,
   taskId?: number,
   recentSummaries?: string[],
   globalContext?: string
@@ -500,10 +502,10 @@ async function getSystemPrompt(
 
   switch (role) {
     case "pm":
-      basePrompt = getPmPrompt(epicId, description);
+      basePrompt = getPmPrompt(epicId, description, epicDir);
       break;
     case "tech-lead":
-      basePrompt = getTechLeadPrompt(epicId, description);
+      basePrompt = getTechLeadPrompt(epicId, description, epicDir);
       break;
     case "coder":
       if (taskId === undefined) {
@@ -517,7 +519,7 @@ async function getSystemPrompt(
       if (!task) {
         throw new Error(`Task not found: ${taskId}`);
       }
-      basePrompt = getCoderPrompt(epicId, description, task.id, task.name, task.description);
+      basePrompt = getCoderPrompt(epicId, description, task.id, task.name, task.description, epicDir);
       break;
     default:
       basePrompt = `You are a helpful assistant working on: ${description}`;

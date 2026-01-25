@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { initIncDir } from "../../state/index.js";
+import { initIncDir, getProjectIncDir, getProjectHash } from "../../state/index.js";
 
 export const initCommand = new Command("init")
   .description("Initialize inc in the current directory")
@@ -8,7 +8,11 @@ export const initCommand = new Command("init")
 
     try {
       await initIncDir(projectRoot);
-      console.log("Initialized .inc directory");
+      const incDir = getProjectIncDir(projectRoot);
+      const hash = getProjectHash(projectRoot);
+      console.log(`Initialized inc for this project`);
+      console.log(`  Project hash: ${hash}`);
+      console.log(`  State directory: ${incDir}`);
     } catch (error) {
       console.error("Failed to initialize:", error);
       process.exit(1);

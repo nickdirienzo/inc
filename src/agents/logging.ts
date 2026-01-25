@@ -1,5 +1,6 @@
 import { appendFile, mkdir } from "node:fs/promises";
-import { join } from "node:path";
+import { join, dirname } from "node:path";
+import { getLogsDir } from "../state/paths.js";
 
 export interface AgentLogEntry {
   timestamp: string;
@@ -19,7 +20,7 @@ export class AgentLogger {
     private role: string,
     private taskId?: number
   ) {
-    const logsDir = join(projectRoot, ".inc", "epics", epicId, "logs");
+    const logsDir = getLogsDir(projectRoot, epicId);
     const filename = taskId !== undefined ? `${role}-task-${taskId}.jsonl` : `${role}.jsonl`;
     this.logPath = join(logsDir, filename);
   }
@@ -53,9 +54,7 @@ export class AgentLogger {
     if (entries.length === 0) return;
 
     try {
-      await mkdir(join(this.projectRoot, ".inc", "epics", this.epicId, "logs"), {
-        recursive: true,
-      });
+      await mkdir(dirname(this.logPath), { recursive: true });
 
       const lines = entries.map((e) => JSON.stringify(e)).join("\n") + "\n";
       await appendFile(this.logPath, lines);

@@ -5,7 +5,7 @@
  */
 
 import { watch } from "chokidar";
-import { query } from "@anthropic-ai/claude-agent-sdk";
+import { query, type HookCallback } from "@anthropic-ai/claude-agent-sdk";
 import {
   getEpicsDir,
   getEpicDir,
@@ -37,6 +37,28 @@ import { AgentLogger } from "../agents/logging.js";
 const projectRoot = process.argv[2] || process.cwd();
 
 const EM_INTERVAL = 30_000;
+
+function createWriteRestrictionHook(allowedDirs: string[]): HookCallback {
+  return async (input) => {
+    const hookInput = input as { tool_input?: { file_path?: string }; tool_name?: string };
+    const filePath = hookInput.tool_input?.file_path;
+    log(`[WriteRestriction] Tool: ${hookInput.tool_name}, Path: ${filePath}, Allowed: ${allowedDirs.join(', ')}`);
+    if (filePath) {
+      const isAllowed = allowedDirs.some(dir => filePath.startsWith(dir));
+      if (!isAllowed) {
+        log(`[WriteRestriction] DENIED: ${filePath}`);
+        return {
+          hookSpecificOutput: {
+            hookEventName: 'PreToolUse' as const,
+            permissionDecision: 'deny' as const,
+            permissionDecisionReason: `Write restricted to: ${allowedDirs.join(', ')}. Got: ${filePath}`
+          }
+        };
+      }
+    }
+    return { continue: true };
+  };
+}
 const STUCK_AGENT_THRESHOLD = 10 * 60 * 1000; // 10 minutes
 
 // Track active agents
@@ -77,8 +99,8 @@ async function spawnPmAgent(epic: Epic): Promise<void> {
   const logger = new AgentLogger(projectRoot, epic.id, "pm");
 
   try {
-    const systemPrompt = getPmPrompt(epic.id, epic.description);
     const epicDir = getEpicDir(projectRoot, epic.id);
+    const systemPrompt = getPmPrompt(epic.id, epic.description, epicDir);
 
     const queryHandle = query({
       prompt: "Read the epic and start working on the spec. Read the codebase to understand the context.",
@@ -90,6 +112,12 @@ async function spawnPmAgent(epic: Epic): Promise<void> {
         permissionMode: "acceptEdits",
         additionalDirectories: [epicDir],
         maxTurns: 50,
+        hooks: {
+          PreToolUse: [{
+            matcher: 'Edit|Write',
+            hooks: [createWriteRestrictionHook([epicDir])]
+          }]
+        }
       },
     });
     agent.query_handle = queryHandle;
@@ -159,8 +187,8 @@ async function spawnTechLeadAgent(epic: Epic): Promise<void> {
   const logger = new AgentLogger(projectRoot, epic.id, "tech_lead");
 
   try {
-    const systemPrompt = getTechLeadPrompt(epic.id, epic.description);
     const epicDir = getEpicDir(projectRoot, epic.id);
+    const systemPrompt = getTechLeadPrompt(epic.id, epic.description, epicDir);
 
     const queryHandle = query({
       prompt: "Read the spec and create the architecture plan and task breakdown.",
@@ -172,6 +200,12 @@ async function spawnTechLeadAgent(epic: Epic): Promise<void> {
         permissionMode: "acceptEdits",
         additionalDirectories: [epicDir],
         maxTurns: 50,
+        hooks: {
+          PreToolUse: [{
+            matcher: 'Edit|Write',
+            hooks: [createWriteRestrictionHook([workspacePath, epicDir])]
+          }]
+        }
       },
     });
     agent.query_handle = queryHandle;
@@ -249,25 +283,32 @@ async function spawnCoderAgent(epic: Epic, task: Task): Promise<void> {
   const logger = new AgentLogger(projectRoot, epic.id, "coder", task.id);
 
   try {
+    const epicDir = getEpicDir(projectRoot, epic.id);
     const systemPrompt = getCoderPrompt(
       epic.id,
       epic.description,
       task.id,
       task.name,
-      task.description
+      task.description,
+      epicDir
     );
-    const epicDir = getEpicDir(projectRoot, epic.id);
 
     const queryHandle = query({
       prompt: "Complete your assigned task.",
       options: {
         cwd: workspacePath,
         systemPrompt,
-        tools: ["Read", "Glob", "Grep", "Edit", "Write", "Bash"],
-        allowedTools: ["Read", "Glob", "Grep", "Edit", "Write", "Bash"],
+        tools: ["Read", "Glob", "Grep", "Edit", "Write"],
+        allowedTools: ["Read", "Glob", "Grep", "Edit", "Write"],
         permissionMode: "acceptEdits",
         additionalDirectories: [epicDir],
         maxTurns: 30,
+        hooks: {
+          PreToolUse: [{
+            matcher: 'Edit|Write',
+            hooks: [createWriteRestrictionHook([workspacePath])]
+          }]
+        }
       },
     });
     agent.query_handle = queryHandle;

@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { createEpic, initIncDir } from "../../state/index.js";
+import { createEpic, initIncDir, getEpicDir } from "../../state/index.js";
 import { registerEpic } from "../../registry/index.js";
 import { readFile, writeFile, unlink } from "node:fs/promises";
 import { spawn } from "node:child_process";
@@ -118,9 +118,10 @@ export const newCommand = new Command("new")
       // Register in global registry so it can be found from anywhere
       await registerEpic(epic.id, projectRoot, brief, epic.shortId);
 
+      const epicDir = getEpicDir(projectRoot, epic.id);
       console.log(`Created epic: ${epic.shortId} ${epic.id}`);
       console.log(`  Status: ${epic.status}`);
-      console.log(`  Path: .inc/epics/${epic.id}/`);
+      console.log(`  Path: ${epicDir}`);
       console.log("");
       console.log(`Next: run 'inc chat ${epic.shortId}' to start working with the PM`);
     } catch (error) {

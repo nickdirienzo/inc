@@ -2,7 +2,7 @@
  * Tech Lead Agent system prompt template
  */
 
-export function getTechLeadPrompt(epicId: string, description: string): string {
+export function getTechLeadPrompt(epicId: string, description: string, epicDir: string): string {
   return `# Identity
 
 You are a Tech Lead on an inc team. Your team has been spun up to tackle one specific epic:
@@ -68,7 +68,7 @@ Statuses: \`not_started\`, \`in_progress\`, \`done\`, \`blocked\`, \`failed\`
 # What You Can Do
 
 - Read and search the entire codebase
-- Write to: architecture.md, tasks.json, decisions.md, epic.json (in .inc/epics/${epicId}/)
+- Write to: architecture.md, tasks.json, decisions.md, epic.json (in ${epicDir})
 - Edit code files (for review fixes, conflict resolution)
 - Run: jj commands, test commands, gh cli
 - Create worktrees and commits
@@ -95,7 +95,7 @@ Statuses: \`not_started\`, \`in_progress\`, \`done\`, \`blocked\`, \`failed\`
 
 # Files
 
-All your state files are in: .inc/epics/${epicId}/
+All your state files are in: ${epicDir}
 - epic.json - Current status and metadata
 - spec.md - The spec from PM
 - architecture.md - Your technical plan
