@@ -174,6 +174,9 @@ export async function readTasks(projectRoot: string, epicId: string): Promise<Ta
     return null;
   }
   const content = await readFile(filePath, "utf-8");
+  if (!content.trim()) {
+    return null;
+  }
   const parsed = JSON.parse(content);
 
   // Handle both formats: raw array [...] or wrapped object {tasks: [...]}
