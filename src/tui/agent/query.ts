@@ -7,6 +7,12 @@
 
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import { getTuiAgentPrompt } from "../../prompts/index.js";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const INC_PLUGIN_PATH = join(__dirname, "..", "..", "..");
 
 /**
  * Response types from the agent
@@ -31,12 +37,14 @@ export async function* executeTuiAgentQuery(
   const systemPrompt = getTuiAgentPrompt();
 
   try {
-    // Configure SDK query with Strike tools and file system access
+    const tools = ["Read", "Glob", "Grep", "Edit", "Write", "Bash", "Skill"];
     const queryOptions: Parameters<typeof query>[0]["options"] = {
       cwd: projectRoot,
       systemPrompt,
-      tools: { type: "preset", preset: "claude_code" },
+      tools,
+      allowedTools: tools,
       permissionMode: "acceptEdits",
+      plugins: [{ type: "local", path: INC_PLUGIN_PATH }],
     };
 
     let responseText = "";
