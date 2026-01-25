@@ -334,55 +334,6 @@ export async function squashAllTasksIntoEpic(
   return { success: true };
 }
 
-export async function squashEpicIntoMain(
-  projectRoot: string,
-  epicId: string
-): Promise<{ success: boolean; error?: string }> {
-  const tasksResult = await squashAllTasksIntoEpic(projectRoot, epicId);
-  if (!tasksResult.success) {
-    return tasksResult;
-  }
-
-  const epicWorkspace = `inc-${epicId}@`;
-
-  const logResult = await runJj(
-    ["log", "-r", epicWorkspace, "--no-graph", "-T", "description"],
-    { cwd: projectRoot }
-  );
-  const epicDescription = logResult.success && logResult.stdout.trim()
-    ? logResult.stdout.trim()
-    : `feat: ${epicId}`;
-
-  // Rebase epic onto @- (the parent of the default workspace's working copy)
-  // This puts the epic changes at the tip of the current branch
-  const rebaseResult = await runJj(
-    ["rebase", "-r", epicWorkspace, "-d", "@-"],
-    { cwd: projectRoot }
-  );
-
-  if (!rebaseResult.success) {
-    return {
-      success: false,
-      error: `Failed to rebase epic onto HEAD: ${rebaseResult.stderr}`,
-    };
-  }
-
-  const squashResult = await runJj(
-    ["squash", "-r", epicWorkspace, "-m", epicDescription],
-    { cwd: projectRoot }
-  );
-
-  if (!squashResult.success) {
-    return {
-      success: false,
-      error: `Failed to squash epic: ${squashResult.stderr}`,
-    };
-  }
-
-  await runJj(["abandon", epicWorkspace], { cwd: projectRoot });
-  return { success: true };
-}
-
 export async function getCurrentCommit(
   workspacePath: string
 ): Promise<{ changeId: string; commitId: string; description: string } | null> {
@@ -442,6 +393,267 @@ export async function cleanupEpicWorkspaces(
     await rm(epicWorkspacePath, { recursive: true, force: true });
   } catch {
     // Ignore if doesn't exist
+  }
+
+  return { success: true };
+}
+
+export async function getDefaultBranch(
+  projectRoot: string
+): Promise<{ success: boolean; branch?: string; error?: string }> {
+  return new Promise((resolve) => {
+    const proc = spawn("git", ["symbolic-ref", "refs/remotes/origin/HEAD"], {
+      cwd: projectRoot,
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+
+    let stdout = "";
+    let stderr = "";
+
+    proc.stdout.on("data", (data) => {
+      stdout += data.toString();
+    });
+
+    proc.stderr.on("data", (data) => {
+      stderr += data.toString();
+    });
+
+    proc.on("close", (code) => {
+      if (code === 0 && stdout.trim()) {
+        // Parse output like "refs/remotes/origin/main" to extract "main"
+        const match = stdout.trim().match(/refs\/remotes\/origin\/(.+)$/);
+        if (match) {
+          resolve({ success: true, branch: match[1] });
+          return;
+        }
+      }
+
+      // Fallback to 'main' if detection fails
+      resolve({ success: true, branch: "main" });
+    });
+
+    proc.on("error", (err) => {
+      // Fallback to 'main' on error
+      resolve({ success: true, branch: "main" });
+    });
+  });
+}
+
+export async function createBranchFromEpic(
+  projectRoot: string,
+  epicId: string,
+  branchName: string
+): Promise<{ success: boolean; error?: string }> {
+  const result = await runJj(
+    ["git", "push", "-r", `inc-${epicId}@`, "--branch", branchName],
+    { cwd: projectRoot }
+  );
+
+  return {
+    success: result.success,
+    error: result.success ? undefined : result.stderr || "Failed to create branch",
+  };
+}
+
+export async function createPullRequest(
+  projectRoot: string,
+  epicId: string,
+  branchName: string,
+  baseBranch: string,
+  title: string,
+  body: string
+): Promise<{ success: boolean; prNumber?: number; prUrl?: string; error?: string }> {
+  return new Promise((resolve) => {
+    const proc = spawn(
+      "gh",
+      ["pr", "create", "--head", branchName, "--base", baseBranch, "--title", title, "--body", body],
+      {
+        cwd: projectRoot,
+        stdio: ["pipe", "pipe", "pipe"],
+      }
+    );
+
+    let stdout = "";
+    let stderr = "";
+
+    proc.stdout.on("data", (data) => {
+      stdout += data.toString();
+    });
+
+    proc.stderr.on("data", (data) => {
+      stderr += data.toString();
+    });
+
+    proc.on("close", (code) => {
+      if (code === 0 && stdout.trim()) {
+        // gh pr create outputs the PR URL on success
+        // Format: https://github.com/owner/repo/pull/123
+        const prUrl = stdout.trim();
+        const match = prUrl.match(/\/pull\/(\d+)$/);
+
+        if (match) {
+          const prNumber = parseInt(match[1], 10);
+          resolve({ success: true, prNumber, prUrl });
+          return;
+        }
+
+        // PR created but couldn't parse URL
+        resolve({
+          success: true,
+          prUrl,
+          error: "PR created but could not parse PR number from URL"
+        });
+        return;
+      }
+
+      // Handle common error cases
+      let errorMessage = stderr.trim() || "Failed to create pull request";
+
+      if (stderr.includes("gh: command not found") || stderr.includes("not found")) {
+        errorMessage = "gh CLI is not installed. Install from https://cli.github.com";
+      } else if (stderr.includes("authentication") || stderr.includes("GITHUB_TOKEN")) {
+        errorMessage = "GitHub authentication failed. Run 'gh auth login' to authenticate";
+      } else if (stderr.includes("network") || stderr.includes("connect")) {
+        errorMessage = "Network error: Could not connect to GitHub";
+      }
+
+      resolve({ success: false, error: errorMessage });
+    });
+
+    proc.on("error", (err) => {
+      let errorMessage = err.message;
+
+      if (err.message.includes("ENOENT") || err.message.includes("not found")) {
+        errorMessage = "gh CLI is not installed. Install from https://cli.github.com";
+      }
+
+      resolve({ success: false, error: errorMessage });
+    });
+  });
+}
+
+export async function checkPrStatus(
+  prNumber: number
+): Promise<{ success: boolean; status?: 'open' | 'merged' | 'closed'; error?: string }> {
+  return new Promise((resolve) => {
+    const proc = spawn("gh", ["pr", "view", prNumber.toString(), "--json", "state,mergedAt"], {
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+
+    let stdout = "";
+    let stderr = "";
+
+    proc.stdout.on("data", (data) => {
+      stdout += data.toString();
+    });
+
+    proc.stderr.on("data", (data) => {
+      stderr += data.toString();
+    });
+
+    proc.on("close", (code) => {
+      if (code !== 0) {
+        // Check for common error cases
+        if (stderr.includes("gh: not found") || stderr.includes("command not found")) {
+          resolve({
+            success: false,
+            error: "gh CLI is not installed",
+          });
+          return;
+        }
+
+        if (stderr.includes("Could not resolve") || stderr.includes("no pull requests found")) {
+          resolve({
+            success: false,
+            error: `PR #${prNumber} not found`,
+          });
+          return;
+        }
+
+        // Generic error
+        resolve({
+          success: false,
+          error: stderr.trim() || `Failed to check PR status (exit code ${code})`,
+        });
+        return;
+      }
+
+      // Parse JSON output
+      try {
+        const data = JSON.parse(stdout.trim());
+        const state = data.state as string;
+        const mergedAt = data.mergedAt;
+
+        // If mergedAt exists (non-null), the PR is merged
+        if (mergedAt) {
+          resolve({ success: true, status: "merged" });
+          return;
+        }
+
+        // Otherwise, use the state value (should be "OPEN" or "CLOSED")
+        const status = state.toLowerCase() as 'open' | 'closed';
+        resolve({ success: true, status });
+      } catch (err) {
+        resolve({
+          success: false,
+          error: `Failed to parse PR data: ${err instanceof Error ? err.message : "unknown error"}`,
+        });
+      }
+    });
+
+    proc.on("error", (err) => {
+      // This handles cases where spawn itself fails (e.g., command not found)
+      if (err.message.includes("ENOENT")) {
+        resolve({
+          success: false,
+          error: "gh CLI is not installed",
+        });
+      } else {
+        resolve({
+          success: false,
+          error: `Failed to execute gh command: ${err.message}`,
+        });
+      }
+    });
+  });
+}
+
+export async function updateDefaultWorkspace(
+  projectRoot: string
+): Promise<{ success: boolean; error?: string }> {
+  // Step 1: Fetch latest from remote
+  const fetchResult = await runJj(["git", "fetch"], { cwd: projectRoot });
+
+  if (!fetchResult.success) {
+    return {
+      success: false,
+      error: `Failed to fetch from remote: ${fetchResult.stderr}`,
+    };
+  }
+
+  // Step 2: Get the default branch name
+  const branchResult = await getDefaultBranch(projectRoot);
+
+  if (!branchResult.success || !branchResult.branch) {
+    return {
+      success: false,
+      error: `Failed to determine default branch: ${branchResult.error || "Unknown error"}`,
+    };
+  }
+
+  const defaultBranch = branchResult.branch;
+
+  // Step 3: Rebase default workspace onto latest main
+  const rebaseResult = await runJj(
+    ["rebase", "-d", `${defaultBranch}@origin`],
+    { cwd: projectRoot }
+  );
+
+  if (!rebaseResult.success) {
+    return {
+      success: false,
+      error: `Failed to rebase onto ${defaultBranch}@origin: ${rebaseResult.stderr}`,
+    };
   }
 
   return { success: true };

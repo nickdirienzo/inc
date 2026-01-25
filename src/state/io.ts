@@ -253,3 +253,35 @@ export async function initIncDir(projectRoot: string): Promise<void> {
   await ensureDir(paths.getIncDir(projectRoot));
   await ensureDir(paths.getEpicsDir(projectRoot));
 }
+
+export async function createConflictResolutionEpic(
+  projectRoot: string,
+  prNumber: number,
+  error: string
+): Promise<Epic> {
+  const epicId = `resolve-conflict-after-pr-${prNumber}`;
+  const description = `Resolve merge conflict between main and default workspace after PR #${prNumber}`;
+
+  // Create the epic
+  const epic = await createEpic(projectRoot, epicId, description);
+
+  // Write the spec with conflict details
+  const specContent = `# Resolve Conflict After PR #${prNumber}
+
+The default workspace failed to rebase onto main after PR #${prNumber} was merged.
+
+Error:
+\`\`\`
+${error}
+\`\`\`
+
+Resolve the conflicts and get the default workspace back in sync with main.
+`;
+  await writeSpec(projectRoot, epicId, specContent);
+
+  // Set status to plan_in_progress (skip PM, go to Tech Lead)
+  epic.status = "plan_in_progress";
+  await writeEpic(projectRoot, epic);
+
+  return epic;
+}

@@ -1,7 +1,6 @@
 import { Command } from "commander";
 import { readEpic, writeEpic, resolveEpicId } from "../../state/index.js";
 import type { EpicStatus } from "../../state/index.js";
-import { squashEpicIntoMain, cleanupEpicWorkspaces } from "../../jj/index.js";
 
 export const approveCommand = new Command("approve")
   .description("Approve spec, plan, or PR for an epic")
@@ -47,18 +46,9 @@ export const approveCommand = new Command("approve")
             process.exit(1);
           }
 
-          // Squash epic workspace into main
-          const squashResult = await squashEpicIntoMain(projectRoot, epicId);
-          if (!squashResult.success) {
-            console.error(`Failed to squash epic into main: ${squashResult.error}`);
+          if (!epic.pr_number) {
+            console.error('Cannot approve PR: no PR has been created yet. Wait for Tech Lead to create the PR.');
             process.exit(1);
-          }
-
-          // Clean up epic workspaces
-          const cleanupResult = await cleanupEpicWorkspaces(projectRoot, epicId);
-          if (!cleanupResult.success) {
-            console.warn(`Warning: Failed to cleanup workspaces: ${cleanupResult.error}`);
-            // Continue anyway - cleanup is not critical
           }
 
           newStatus = "done";

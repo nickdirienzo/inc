@@ -37,6 +37,7 @@ export interface Epic {
   needs_attention?: NeedsAttention;
   pr_number?: number;
   workspace_path?: string;
+  merged_at?: string;
 }
 
 export interface Task {
