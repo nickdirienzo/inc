@@ -17,7 +17,15 @@ export interface TaskStatusRequest {
   assignee?: string | null;
 }
 
-export type QueueRequest = TaskStatusRequest;
+export interface AttentionRequest {
+  type: "attention";
+  epicId: string;
+  from: "pm" | "tech_lead" | "coder";
+  to: "em" | "pm" | "tech_lead" | "user";
+  question: string;
+}
+
+export type QueueRequest = TaskStatusRequest | AttentionRequest;
 
 export interface QueueResponse {
   success: boolean;
