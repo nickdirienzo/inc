@@ -13,6 +13,7 @@ import { homedir } from "node:os";
 
 export interface RegistryEntry {
   epicId: string;
+  shortId?: string;
   projectPath: string;
   description: string;
   createdAt: string;
@@ -66,7 +67,8 @@ export async function writeRegistry(registry: Registry): Promise<void> {
 export async function registerEpic(
   epicId: string,
   projectPath: string,
-  description: string
+  description: string,
+  shortId?: string
 ): Promise<void> {
   const registry = await readRegistry();
   const now = new Date().toISOString();
@@ -74,6 +76,7 @@ export async function registerEpic(
   const existing = registry.entries[epicId];
   registry.entries[epicId] = {
     epicId,
+    shortId: shortId ?? existing?.shortId,
     projectPath,
     description,
     createdAt: existing?.createdAt ?? now,
@@ -93,13 +96,32 @@ export async function unregisterEpic(epicId: string): Promise<void> {
 }
 
 /**
- * Look up an epic in the registry
+ * Look up an epic in the registry by epicId or shortId
  */
 export async function lookupEpic(
-  epicId: string
+  idOrShortId: string
 ): Promise<RegistryEntry | null> {
   const registry = await readRegistry();
-  return registry.entries[epicId] ?? null;
+
+  if (registry.entries[idOrShortId]) {
+    return registry.entries[idOrShortId];
+  }
+
+  const matches: RegistryEntry[] = [];
+  for (const entry of Object.values(registry.entries)) {
+    if (entry.shortId === idOrShortId) {
+      return entry;
+    }
+    if (entry.shortId?.startsWith(idOrShortId)) {
+      matches.push(entry);
+    }
+  }
+
+  if (matches.length === 1) {
+    return matches[0];
+  }
+
+  return null;
 }
 
 /**
@@ -113,7 +135,7 @@ export async function listRegisteredEpics(): Promise<RegistryEntry[]> {
 }
 
 /**
- * Search for epics by partial match on epicId or description
+ * Search for epics by partial match on epicId, shortId, or description
  */
 export async function searchEpics(query: string): Promise<RegistryEntry[]> {
   const registry = await readRegistry();
@@ -123,6 +145,7 @@ export async function searchEpics(query: string): Promise<RegistryEntry[]> {
     .filter(
       (entry) =>
         entry.epicId.toLowerCase().includes(lowerQuery) ||
+        entry.shortId?.toLowerCase().includes(lowerQuery) ||
         entry.description.toLowerCase().includes(lowerQuery)
     )
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));

@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import { createInterface } from "node:readline";
-import { readEpic, writeEpic } from "../../state/index.js";
+import { readEpic, writeEpic, resolveEpicId } from "../../state/index.js";
 import { unregisterEpic, lookupEpic, searchEpics } from "../../registry/index.js";
 import { cleanupEpicWorkspaces, isJjRepo } from "../../jj/index.js";
 
@@ -12,15 +12,17 @@ export const abandonCommand = new Command("abandon")
     let projectRoot = process.cwd();
 
     try {
-      // First try to find epic in current directory
-      let epic = await readEpic(projectRoot, epicId);
+      // First try to resolve epic ID (supports short IDs) in current directory
+      const resolved = await resolveEpicId(projectRoot, epicId);
+      let epic = resolved?.epic ?? null;
 
       // If not found locally, check global registry
       if (!epic) {
         const registryEntry = await lookupEpic(epicId);
         if (registryEntry) {
           projectRoot = registryEntry.projectPath;
-          epic = await readEpic(projectRoot, epicId);
+          const localResolved = await resolveEpicId(projectRoot, epicId);
+          epic = localResolved?.epic ?? await readEpic(projectRoot, epicId);
         }
       }
 

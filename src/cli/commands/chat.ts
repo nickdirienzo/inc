@@ -1,7 +1,7 @@
 import { Command } from "commander";
 import { createInterface } from "node:readline";
 import { query } from "@anthropic-ai/claude-agent-sdk";
-import { readEpic, writeEpic, getEpicDir, getChatsDir } from "../../state/index.js";
+import { readEpic, writeEpic, getEpicDir, getChatsDir, resolveEpicId } from "../../state/index.js";
 import { getPmPrompt, getTechLeadPrompt, getCoderPrompt } from "../../prompts/index.js";
 import { readTasks } from "../../state/index.js";
 import { lookupEpic, searchEpics, listRegisteredEpics } from "../../registry/index.js";
@@ -233,15 +233,22 @@ export const chatCommand = new Command("chat")
     let projectRoot = process.cwd();
 
     try {
-      // First try to find epic in current directory
-      let epic = await readEpic(projectRoot, epicId);
+      // First try to resolve epic ID (supports short IDs) in current directory
+      let resolvedEpicId = epicId;
+      const resolved = await resolveEpicId(projectRoot, epicId);
+      let epic = resolved?.epic ?? null;
+      if (resolved) {
+        resolvedEpicId = resolved.epicId;
+      }
 
       // If not found locally, check global registry
       if (!epic) {
         const registryEntry = await lookupEpic(epicId);
         if (registryEntry) {
           projectRoot = registryEntry.projectPath;
-          epic = await readEpic(projectRoot, epicId);
+          const localResolved = await resolveEpicId(projectRoot, epicId);
+          epic = localResolved?.epic ?? await readEpic(projectRoot, epicId);
+          if (localResolved) resolvedEpicId = localResolved.epicId;
         }
       }
 
@@ -250,6 +257,7 @@ export const chatCommand = new Command("chat")
         const matches = await searchEpics(epicId);
         if (matches.length === 1) {
           projectRoot = matches[0].projectPath;
+          resolvedEpicId = matches[0].epicId;
           epic = await readEpic(projectRoot, matches[0].epicId);
         } else if (matches.length > 1) {
           console.error(`Multiple epics match "${epicId}":`);
@@ -265,6 +273,9 @@ export const chatCommand = new Command("chat")
         console.error(`Epic not found: ${epicId}`);
         process.exit(1);
       }
+
+      // Use resolved ID for all subsequent operations
+      epicId = resolvedEpicId;
 
       console.log(`Project: ${projectRoot}`);
 

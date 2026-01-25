@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { readEpic, writeEpic } from "../../state/index.js";
+import { readEpic, writeEpic, resolveEpicId } from "../../state/index.js";
 import type { EpicStatus } from "../../state/index.js";
 import { squashEpicIntoMain, cleanupEpicWorkspaces } from "../../jj/index.js";
 
@@ -11,11 +11,13 @@ export const approveCommand = new Command("approve")
     const projectRoot = process.cwd();
 
     try {
-      const epic = await readEpic(projectRoot, epicId);
+      const resolved = await resolveEpicId(projectRoot, epicId);
+      const epic = resolved?.epic ?? await readEpic(projectRoot, epicId);
       if (!epic) {
         console.error(`Epic not found: ${epicId}`);
         process.exit(1);
       }
+      epicId = resolved?.epicId ?? epicId;
 
       let newStatus: EpicStatus;
       let message: string;

@@ -116,13 +116,13 @@ export const newCommand = new Command("new")
       const epic = await createEpic(projectRoot, id, brief);
 
       // Register in global registry so it can be found from anywhere
-      await registerEpic(epic.id, projectRoot, brief);
+      await registerEpic(epic.id, projectRoot, brief, epic.shortId);
 
-      console.log(`Created epic: ${epic.id}`);
+      console.log(`Created epic: ${epic.shortId} ${epic.id}`);
       console.log(`  Status: ${epic.status}`);
       console.log(`  Path: .inc/epics/${epic.id}/`);
       console.log("");
-      console.log(`Next: run 'inc chat ${epic.id}' to start working with the PM`);
+      console.log(`Next: run 'inc chat ${epic.shortId}' to start working with the PM`);
     } catch (error) {
       console.error("Failed to create epic:", error);
       process.exit(1);
