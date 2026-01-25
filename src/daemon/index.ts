@@ -28,6 +28,7 @@ import {
   describeCommit,
   isJjRepo,
 } from "../jj/index.js";
+import { AgentLogger } from "../agents/logging.js";
 
 const projectRoot = process.argv[2] || process.cwd();
 
@@ -66,11 +67,12 @@ async function spawnPmAgent(mission: Mission): Promise<void> {
   activeAgents.set(agentKey, agent);
   await updateDaemonState();
 
+  const logger = new AgentLogger(projectRoot, mission.id, "pm");
+
   try {
     const systemPrompt = getPmPrompt(mission.id, mission.description);
     const missionDir = getMissionDir(projectRoot, mission.id);
 
-    // PM agent runs until spec is complete
     for await (const message of query({
       prompt: "Read the mission and start working on the spec. Read the codebase to understand the context.",
       options: {
@@ -83,6 +85,8 @@ async function spawnPmAgent(mission: Mission): Promise<void> {
         maxTurns: 50,
       },
     })) {
+      await logger.log(message);
+
       if (message.type === "system" && "subtype" in message && message.subtype === "init") {
         agent.session_id = message.session_id;
         await updateDaemonState();
@@ -99,6 +103,7 @@ async function spawnPmAgent(mission: Mission): Promise<void> {
   } catch (error) {
     log(`PM agent failed for ${mission.id}: ${error}`);
   } finally {
+    await logger.close();
     activeAgents.delete(agentKey);
     await updateDaemonState();
   }
@@ -122,6 +127,8 @@ async function spawnTechLeadAgent(mission: Mission): Promise<void> {
   activeAgents.set(agentKey, agent);
   await updateDaemonState();
 
+  const logger = new AgentLogger(projectRoot, mission.id, "tech_lead");
+
   try {
     const systemPrompt = getTechLeadPrompt(mission.id, mission.description);
     const missionDir = getMissionDir(projectRoot, mission.id);
@@ -138,6 +145,8 @@ async function spawnTechLeadAgent(mission: Mission): Promise<void> {
         maxTurns: 50,
       },
     })) {
+      await logger.log(message);
+
       if (message.type === "system" && "subtype" in message && message.subtype === "init") {
         agent.session_id = message.session_id;
         await updateDaemonState();
@@ -154,6 +163,7 @@ async function spawnTechLeadAgent(mission: Mission): Promise<void> {
   } catch (error) {
     log(`Tech Lead agent failed for ${mission.id}: ${error}`);
   } finally {
+    await logger.close();
     activeAgents.delete(agentKey);
     await updateDaemonState();
   }
@@ -204,6 +214,8 @@ async function spawnCoderAgent(mission: Mission, task: Task): Promise<void> {
   activeAgents.set(agentKey, agent);
   await updateDaemonState();
 
+  const logger = new AgentLogger(projectRoot, mission.id, "coder", task.id);
+
   try {
     const systemPrompt = getCoderPrompt(
       mission.id,
@@ -218,15 +230,17 @@ async function spawnCoderAgent(mission: Mission, task: Task): Promise<void> {
     for await (const message of query({
       prompt: "Complete your assigned task.",
       options: {
-        cwd: workspacePath, // Use workspace path instead of project root
+        cwd: workspacePath,
         systemPrompt,
         tools: ["Read", "Glob", "Grep", "Edit", "Write", "Bash"],
         allowedTools: ["Read", "Glob", "Grep", "Edit", "Write", "Bash"],
         permissionMode: "acceptEdits",
-        additionalDirectories: [missionDir], // Only allow access to mission state dir
+        additionalDirectories: [missionDir],
         maxTurns: 30,
       },
     })) {
+      await logger.log(message);
+
       if (message.type === "system" && "subtype" in message && message.subtype === "init") {
         agent.session_id = message.session_id;
         await updateDaemonState();
@@ -303,9 +317,9 @@ async function spawnCoderAgent(mission: Mission, task: Task): Promise<void> {
       }
     }
   } finally {
+    await logger.close();
     activeAgents.delete(agentKey);
     await updateDaemonState();
-    // Note: We don't delete the workspace here - Tech Lead needs to review it
   }
 }
 
