@@ -13,7 +13,7 @@ import { homedir } from "node:os";
 
 export interface RegistryEntry {
   epicId: string;
-  shortId?: string;
+  slug?: string;
   projectPath: string;
   description: string;
   createdAt: string;
@@ -68,7 +68,7 @@ export async function registerEpic(
   epicId: string,
   projectPath: string,
   description: string,
-  shortId?: string
+  slug?: string
 ): Promise<void> {
   const registry = await readRegistry();
   const now = new Date().toISOString();
@@ -76,7 +76,7 @@ export async function registerEpic(
   const existing = registry.entries[epicId];
   registry.entries[epicId] = {
     epicId,
-    shortId: shortId ?? existing?.shortId,
+    slug: slug ?? existing?.slug,
     projectPath,
     description,
     createdAt: existing?.createdAt ?? now,
@@ -96,23 +96,26 @@ export async function unregisterEpic(epicId: string): Promise<void> {
 }
 
 /**
- * Look up an epic in the registry by epicId or shortId
+ * Look up an epic in the registry by epicId or slug
  */
 export async function lookupEpic(
-  idOrShortId: string
+  idOrSlug: string
 ): Promise<RegistryEntry | null> {
   const registry = await readRegistry();
 
-  if (registry.entries[idOrShortId]) {
-    return registry.entries[idOrShortId];
+  if (registry.entries[idOrSlug]) {
+    return registry.entries[idOrSlug];
   }
 
   const matches: RegistryEntry[] = [];
   for (const entry of Object.values(registry.entries)) {
-    if (entry.shortId === idOrShortId) {
+    if (entry.slug === idOrSlug) {
       return entry;
     }
-    if (entry.shortId?.startsWith(idOrShortId)) {
+    if (entry.slug?.startsWith(idOrSlug)) {
+      matches.push(entry);
+    }
+    if (entry.epicId.startsWith(idOrSlug)) {
       matches.push(entry);
     }
   }
@@ -135,7 +138,7 @@ export async function listRegisteredEpics(): Promise<RegistryEntry[]> {
 }
 
 /**
- * Search for epics by partial match on epicId, shortId, or description
+ * Search for epics by partial match on epicId, slug, or description
  */
 export async function searchEpics(query: string): Promise<RegistryEntry[]> {
   const registry = await readRegistry();
@@ -145,7 +148,7 @@ export async function searchEpics(query: string): Promise<RegistryEntry[]> {
     .filter(
       (entry) =>
         entry.epicId.toLowerCase().includes(lowerQuery) ||
-        entry.shortId?.toLowerCase().includes(lowerQuery) ||
+        entry.slug?.toLowerCase().includes(lowerQuery) ||
         entry.description.toLowerCase().includes(lowerQuery)
     )
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));

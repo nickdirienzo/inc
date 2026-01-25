@@ -29,7 +29,7 @@ export interface NeedsAttention {
 
 export interface Epic {
   id: string;
-  shortId: string;
+  slug: string;
   description: string;
   status: EpicStatus;
   created_at: string;

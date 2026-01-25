@@ -71,16 +71,11 @@ export function EpicOverview({ epics, needsAttention }: EpicOverviewProps) {
           >
             <Text bold color="yellow">⚠️  NEEDS ATTENTION</Text>
             <Box flexDirection="column" overflow="hidden">
-              {maxNeedsAttention.map((epic) => {
-                const shortId = epic.shortId ?? epic.id.slice(0, 8);
-                return (
+              {maxNeedsAttention.map((epic) => (
                 <Box key={epic.id} flexDirection="column" marginBottom={1}>
                   <Box>
                     <Text color="yellow" bold>
-                      ⚠️  {shortId}
-                    </Text>
-                    <Text color="gray" dimColor>
-                      {" "}{epic.id}
+                      ⚠️  {epic.id}
                     </Text>
                     <Text color="gray" dimColor>
                       {" "}({epic.projectPath})
@@ -94,7 +89,7 @@ export function EpicOverview({ epics, needsAttention }: EpicOverviewProps) {
                     </Box>
                   )}
                 </Box>
-              )})}
+              ))}
             </Box>
           </Box>
         </Box>
@@ -130,7 +125,6 @@ export function EpicOverview({ epics, needsAttention }: EpicOverviewProps) {
                   const statusColor = getStatusColor(epic.status);
                   const hasAttention = epic.needs_attention !== undefined;
                   const prInfo = epic.pr_number ? ` (PR #${epic.pr_number})` : "";
-                  const shortId = epic.shortId ?? epic.id.slice(0, 8);
 
                   return (
                     <Box key={epic.id} paddingLeft={2} marginBottom={1}>
@@ -139,11 +133,8 @@ export function EpicOverview({ epics, needsAttention }: EpicOverviewProps) {
                           {hasAttention && (
                             <Text color="yellow">⚠️  </Text>
                           )}
-                          <Text color="cyan">{shortId}</Text>
+                          <Text color="cyan">{epic.id}</Text>
                         </Text>
-                      </Box>
-                      <Box width={30}>
-                        <Text color="gray">{epic.id}</Text>
                       </Box>
                       <Box width={20}>
                         <Text color={statusColor}>{epic.status}</Text>

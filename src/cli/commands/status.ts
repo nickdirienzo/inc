@@ -37,8 +37,7 @@ export const statusCommand = new Command("status")
         for (const { entry, epic } of filteredEpics) {
           const status = epic?.status ?? "unknown";
           const attention = epic?.needs_attention ? " ⚠️" : "";
-          const shortId = epic?.shortId ?? entry.epicId.slice(0, 8);
-          console.log(`  ${shortId} ${entry.epicId}: ${status}${attention}`);
+          console.log(`  ${entry.epicId}: ${status}${attention}`);
           console.log(`    ${entry.description}`);
           console.log(`    → ${entry.projectPath}`);
           console.log("");
@@ -101,8 +100,7 @@ export const statusCommand = new Command("status")
 
         console.log(`Project: ${projectRoot}`);
 
-        const shortId = epic.shortId ?? epic.id.slice(0, 8);
-        console.log(`Epic: ${shortId} ${epic.id}`);
+        console.log(`Epic: ${epic.id}`);
         console.log(`  Description: ${epic.description}`);
         console.log(`  Status: ${epic.status}`);
         console.log(`  Created: ${epic.created_at}`);
@@ -158,8 +156,7 @@ export const statusCommand = new Command("status")
         console.log("Epics:");
         for (const epic of activeEpics) {
           const attentionFlag = epic.needs_attention ? " ⚠️" : "";
-          const shortId = epic.shortId ?? epic.id.slice(0, 8);
-          console.log(`  ${shortId} ${epic.id}: ${epic.status}${attentionFlag}`);
+          console.log(`  ${epic.id}: ${epic.status}${attentionFlag}`);
         }
       }
     } catch (error) {
