@@ -328,6 +328,10 @@ export async function squashTaskIntoMission(
     { cwd: projectRoot }
   );
 
+  if (result.success) {
+    await runJj(["abandon", fromWorkspace], { cwd: projectRoot });
+  }
+
   return {
     success: result.success,
     error: result.success ? undefined : result.stderr,
@@ -344,11 +348,14 @@ export async function squashMissionIntoMain(
 ): Promise<{ success: boolean; error?: string }> {
   const missionWorkspaceName = `strike-${missionId}`;
 
-  // Squash the mission workspace's commit into its parent (main)
   const result = await runJj(
     ["squash", "--from", missionWorkspaceName],
     { cwd: projectRoot }
   );
+
+  if (result.success) {
+    await runJj(["abandon", `${missionWorkspaceName}@`], { cwd: projectRoot });
+  }
 
   return {
     success: result.success,
@@ -419,10 +426,10 @@ export async function cleanupMissionWorkspaces(
     (ws) => ws.name === missionWorkspaceName || ws.name.startsWith(taskWorkspacePrefix)
   );
 
-  // Forget each workspace (be permissive - don't fail if some operations fail)
+  // Abandon commits and forget each workspace (be permissive - don't fail if some operations fail)
   for (const workspace of missionWorkspaces) {
+    await runJj(["abandon", `${workspace.name}@`], { cwd: projectRoot });
     await runJj(["workspace", "forget", workspace.name], { cwd: projectRoot });
-    // Ignore failures - this is cleanup, we want to continue even if some fail
   }
 
   // Delete the mission workspace directory
