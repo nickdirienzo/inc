@@ -107,6 +107,13 @@ async function isValidJjWorkspace(workspacePath: string, workspaceName: string, 
   }
 }
 
+async function forgetWorkspaceIfExists(workspaceName: string, projectRoot: string): Promise<void> {
+  const workspaces = await listWorkspaces(projectRoot);
+  if (workspaces.some((ws) => ws.name === workspaceName)) {
+    await runJj(["workspace", "forget", workspaceName], { cwd: projectRoot });
+  }
+}
+
 export async function createEpicWorkspace(
   projectRoot: string,
   epicId: string
@@ -120,6 +127,8 @@ export async function createEpicWorkspace(
   if (await isValidJjWorkspace(workspacePath, workspaceName, projectRoot)) {
     return { success: true, workspacePath };
   }
+
+  await forgetWorkspaceIfExists(workspaceName, projectRoot);
 
   const result = await runJj(
     ["workspace", "add", "--name", workspaceName, "-r", "main", workspacePath],
@@ -151,6 +160,8 @@ export async function createTaskWorkspace(
   if (await isValidJjWorkspace(workspacePath, workspaceName, projectRoot)) {
     return { success: true, workspacePath };
   }
+
+  await forgetWorkspaceIfExists(workspaceName, projectRoot);
 
   const result = await runJj(
     ["workspace", "add", "--name", workspaceName, "-r", `inc-${epicId}@`, workspacePath],
