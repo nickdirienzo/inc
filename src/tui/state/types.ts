@@ -15,7 +15,7 @@ export interface MissionWithProject extends Mission {
  * Agent message for conversation display in TUI
  */
 export interface AgentMessage {
-  role: "pm" | "tech_lead" | "coder" | "user";
+  role: "pm" | "tech_lead" | "coder" | "mission_control" | "user";
   content: string;
   timestamp: string;
 }
