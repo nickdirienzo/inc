@@ -1,5 +1,5 @@
 /**
- * State I/O utilities for reading and writing Strike state files
+ * State I/O utilities for reading and writing Inc state files
  */
 
 import { readFile, writeFile, mkdir, readdir } from "node:fs/promises";
@@ -205,7 +205,7 @@ export async function removeDaemonPid(projectRoot: string): Promise<void> {
 // Initialization
 // ============================================================================
 
-export async function initStrikeDir(projectRoot: string): Promise<void> {
-  await ensureDir(paths.getStrikeDir(projectRoot));
+export async function initIncDir(projectRoot: string): Promise<void> {
+  await ensureDir(paths.getIncDir(projectRoot));
   await ensureDir(paths.getMissionsDir(projectRoot));
 }

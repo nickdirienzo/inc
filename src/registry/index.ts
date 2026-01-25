@@ -1,10 +1,10 @@
 /**
- * Global Strike Registry
+ * Global Inc Registry
  *
- * Maps mission slugs to their project paths, allowing `strike chat <mission>`
+ * Maps mission slugs to their project paths, allowing `inc chat <mission>`
  * to work from anywhere.
  *
- * Registry lives at ~/.strike/registry.json
+ * Registry lives at ~/.inc/registry.json
  */
 
 import { readFile, writeFile, mkdir } from "node:fs/promises";
@@ -25,17 +25,17 @@ export interface Registry {
 }
 
 /**
- * Get the path to the global Strike directory
+ * Get the path to the global Inc directory
  */
-export function getGlobalStrikeDir(): string {
-  return join(homedir(), ".strike");
+export function getGlobalIncDir(): string {
+  return join(homedir(), ".inc");
 }
 
 /**
  * Get the path to the registry file
  */
 export function getRegistryPath(): string {
-  return join(getGlobalStrikeDir(), "registry.json");
+  return join(getGlobalIncDir(), "registry.json");
 }
 
 /**
@@ -55,7 +55,7 @@ export async function readRegistry(): Promise<Registry> {
  * Write the global registry
  */
 export async function writeRegistry(registry: Registry): Promise<void> {
-  const dir = getGlobalStrikeDir();
+  const dir = getGlobalIncDir();
   await mkdir(dir, { recursive: true });
   await writeFile(getRegistryPath(), JSON.stringify(registry, null, 2));
 }

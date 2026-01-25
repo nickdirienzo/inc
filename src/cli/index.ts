@@ -13,8 +13,8 @@ import { tuiCommand } from "./commands/tui.js";
 const program = new Command();
 
 program
-  .name("strike")
-  .description("Agent orchestration for small teams")
+  .name("inc")
+  .description("An experiment with Claude Code orchestration")
   .version("1.0.0");
 
 program.addCommand(initCommand);

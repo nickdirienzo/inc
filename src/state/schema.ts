@@ -61,7 +61,7 @@ export interface Decision {
 }
 
 /**
- * Structure of the .strike directory for a mission
+ * Structure of the .inc directory for a mission
  */
 export interface MissionDirectory {
   missionJson: Mission;

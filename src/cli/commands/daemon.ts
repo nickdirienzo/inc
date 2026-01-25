@@ -15,7 +15,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 export const daemonCommand = new Command("daemon")
-  .description("Manage the strike daemon");
+  .description("Manage the inc daemon");
 
 daemonCommand
   .command("start")

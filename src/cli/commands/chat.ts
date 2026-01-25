@@ -9,11 +9,11 @@ import { mkdir, readdir, writeFile, readFile } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
-// Get the Strike package root (where .claude-plugin lives)
+// Get the Inc package root (where .claude-plugin lives)
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 // From dist/cli/commands/chat.js -> package root
-const STRIKE_PLUGIN_PATH = join(__dirname, "..", "..", "..");
+const INC_PLUGIN_PATH = join(__dirname, "..", "..", "..");
 
 // Animated spinner with fun messages
 const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
@@ -84,7 +84,7 @@ async function buildGlobalProjectsContext(): Promise<string> {
   }
 
   const lines: string[] = [
-    "# Known Strike Projects",
+    "# Known Inc Projects",
     "",
     "You have access to information about these projects. If the user mentions something ambiguous, you can ask which project they mean.",
     "",
@@ -345,7 +345,7 @@ export const chatCommand = new Command("chat")
       };
 
       // Track session ID for multi-turn conversation within this chat session
-      // This is NOT persisted between different `strike chat` invocations
+      // This is NOT persisted between different `inc chat` invocations
       let sessionId: string | undefined;
 
       const cleanup = async (): Promise<void> => {
@@ -393,7 +393,7 @@ export const chatCommand = new Command("chat")
             allowedTools: allTools,
             permissionMode: "acceptEdits",
             additionalDirectories: [missionDir],
-            plugins: [{ type: "local", path: STRIKE_PLUGIN_PATH }],
+            plugins: [{ type: "local", path: INC_PLUGIN_PATH }],
           };
 
           // Resume session for multi-turn conversation within this chat

@@ -1,7 +1,7 @@
 /**
  * jj (Jujutsu) integration utilities
  *
- * Strike uses jj workspaces to give each Coder agent their own isolated
+ * Inc uses jj workspaces to give each Coder agent their own isolated
  * working directory. This prevents conflicts when multiple Coders work
  * in parallel.
  */
@@ -75,7 +75,7 @@ export async function isJjRepo(cwd: string): Promise<boolean> {
 }
 
 export function getWorkspacesDir(projectRoot: string, missionId: string): string {
-  return join(projectRoot, ".strike", "workspaces", missionId);
+  return join(projectRoot, ".inc", "workspaces", missionId);
 }
 
 export function getMissionWorkspacePath(
@@ -98,9 +98,9 @@ export async function createMissionWorkspace(
   missionId: string
 ): Promise<{ success: boolean; workspacePath: string; error?: string }> {
   const workspacePath = getMissionWorkspacePath(projectRoot, missionId);
-  const workspaceName = `strike-${missionId}`;
+  const workspaceName = `inc-${missionId}`;
 
-  const workspacesBaseDir = join(projectRoot, ".strike", "workspaces");
+  const workspacesBaseDir = join(projectRoot, ".inc", "workspaces");
   await mkdir(workspacesBaseDir, { recursive: true });
 
   try {
@@ -132,7 +132,7 @@ export async function createTaskWorkspace(
   taskId: number
 ): Promise<{ success: boolean; workspacePath: string; error?: string }> {
   const workspacePath = getTaskWorkspacePath(projectRoot, missionId, taskId);
-  const workspaceName = `strike-${missionId}-task-${taskId}`;
+  const workspaceName = `inc-${missionId}-task-${taskId}`;
 
   const workspacesDir = getWorkspacesDir(projectRoot, missionId);
   await mkdir(workspacesDir, { recursive: true });
@@ -145,7 +145,7 @@ export async function createTaskWorkspace(
   }
 
   const result = await runJj(
-    ["workspace", "add", "--name", workspaceName, "-r", `strike-${missionId}@`, workspacePath],
+    ["workspace", "add", "--name", workspaceName, "-r", `inc-${missionId}@`, workspacePath],
     { cwd: projectRoot }
   );
 
@@ -166,7 +166,7 @@ export async function deleteTaskWorkspace(
   taskId: number
 ): Promise<{ success: boolean; error?: string }> {
   const workspacePath = getTaskWorkspacePath(projectRoot, missionId, taskId);
-  const workspaceName = `strike-${missionId}-task-${taskId}`;
+  const workspaceName = `inc-${missionId}-task-${taskId}`;
 
   await runJj(["workspace", "forget", workspaceName], {
     cwd: projectRoot,
@@ -255,8 +255,8 @@ export async function squashTaskIntoMission(
   missionId: string,
   taskId: number
 ): Promise<{ success: boolean; error?: string }> {
-  const taskWorkspace = `strike-${missionId}-task-${taskId}@`;
-  const missionWorkspace = `strike-${missionId}@`;
+  const taskWorkspace = `inc-${missionId}-task-${taskId}@`;
+  const missionWorkspace = `inc-${missionId}@`;
 
   const rebaseResult = await runJj(
     ["rebase", "-r", taskWorkspace, "-d", missionWorkspace],
@@ -291,7 +291,7 @@ export async function squashAllTasksIntoMission(
   missionId: string
 ): Promise<{ success: boolean; error?: string }> {
   const workspaces = await listWorkspaces(projectRoot);
-  const taskPrefix = `strike-${missionId}-task-`;
+  const taskPrefix = `inc-${missionId}-task-`;
 
   const taskWorkspaces = workspaces
     .filter((ws) => ws.name.startsWith(taskPrefix))
@@ -324,7 +324,7 @@ export async function squashMissionIntoMain(
     return tasksResult;
   }
 
-  const missionWorkspace = `strike-${missionId}@`;
+  const missionWorkspace = `inc-${missionId}@`;
 
   const logResult = await runJj(
     ["log", "-r", missionWorkspace, "--no-graph", "-T", "description"],
@@ -406,8 +406,8 @@ export async function cleanupMissionWorkspaces(
 ): Promise<{ success: boolean; error?: string }> {
   const workspaces = await listWorkspaces(projectRoot);
 
-  const missionWorkspaceName = `strike-${missionId}`;
-  const taskWorkspacePrefix = `strike-${missionId}-task-`;
+  const missionWorkspaceName = `inc-${missionId}`;
+  const taskWorkspacePrefix = `inc-${missionId}-task-`;
 
   const missionWorkspaces = workspaces.filter(
     (ws) => ws.name === missionWorkspaceName || ws.name.startsWith(taskWorkspacePrefix)

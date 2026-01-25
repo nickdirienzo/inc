@@ -2,7 +2,7 @@
  * Mission monitoring hook for TUI
  *
  * Provides global mission visibility by:
- * - Reading ~/.strike/registry.json
+ * - Reading ~/.inc/registry.json
  * - Loading mission.json for each registry entry
  * - Watching for changes with chokidar
  * - Debouncing updates (300ms)
