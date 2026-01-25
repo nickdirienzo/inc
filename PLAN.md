@@ -1,4 +1,4 @@
-# Strike Implementation Plan
+# Inc Implementation Plan
 
 ## Current Status
 
@@ -8,7 +8,7 @@
 - [x] Project setup with TypeScript, `@anthropic-ai/claude-agent-sdk`, `commander`, `chokidar`
 - [x] State schema types (`Mission`, `Task`, `Decision`, `DaemonState`, `ActiveAgent`)
 - [x] File structure helpers (paths.ts, io.ts with read/write for all state files)
-- [x] Global registry (~/.strike/registry.json) for cross-project mission lookup
+- [x] Global registry (~/.inc/registry.json) for cross-project mission lookup
 
 **Phase 2: Agents**
 - [x] PM agent system prompt
@@ -17,13 +17,13 @@
 - [x] All prompts wired up in chat command
 
 **Phase 3: CLI**
-- [x] `strike init` - Initialize .strike directory
-- [x] `strike new "<description>"` - Create mission with slug
-- [x] `strike status [mission-id]` - Show all missions or specific mission with tasks
-- [x] `strike status -g` - Show all missions across all projects
-- [x] `strike chat <mission-id> [-r role]` - Interactive chat with agents
-- [x] `strike approve <spec|plan|pr> <mission-id>` - Approve phase transitions
-- [x] `strike daemon start|stop|status|logs` - Daemon management
+- [x] `inc init` - Initialize .inc directory
+- [x] `inc new "<description>"` - Create mission with slug
+- [x] `inc status [mission-id]` - Show all missions or specific mission with tasks
+- [x] `inc status -g` - Show all missions across all projects
+- [x] `inc chat <mission-id> [-r role]` - Interactive chat with agents
+- [x] `inc approve <spec|plan|pr> <mission-id>` - Approve phase transitions
+- [x] `inc daemon start|stop|status|logs` - Daemon management
 
 **Phase 4: Daemon (Basic)**
 - [x] Background daemon with file watching (chokidar)
@@ -32,7 +32,7 @@
 - [x] Log file for daemon output
 
 **Phase 5: jj Integration (Basic)**
-- [x] Workspace creation per task (.strike/workspaces/<mission>/<task>/)
+- [x] Workspace creation per task (.inc/workspaces/<mission>/<task>/)
 - [x] Commit description with task info
 
 ### 🚧 In Progress / Next Up
@@ -56,7 +56,7 @@ Hierarchical workspace structure for parallel execution and staged review:
 
 ```
 main (default workspace)
-  └── mission workspace (strike-add-dark-mode)
+  └── mission workspace (inc-add-dark-mode)
         ├── task-1 workspace → squash into mission after task review
         ├── task-2 workspace → squash into mission after task review
         └── task-3 workspace → squash into mission after task review
@@ -69,8 +69,8 @@ main (default workspace)
 ```
 
 **Workspace Structure:**
-- Mission workspace: `.strike/workspaces/<mission>/` (branches off main)
-- Task workspaces: `.strike/workspaces/<mission>/task-<id>/` (branches off mission)
+- Mission workspace: `.inc/workspaces/<mission>/` (branches off main)
+- Task workspaces: `.inc/workspaces/<mission>/task-<id>/` (branches off mission)
 
 **Two Review Stages:**
 1. **Task review** - After each Coder completes, review squad checks that task's commit before squashing into mission workspace
@@ -85,7 +85,7 @@ main (default workspace)
 **`approve pr` Automation:**
 1. Squash mission workspace commit into main
 2. Run `jj workspace forget` on mission + all task workspaces
-3. Delete `.strike/workspaces/<mission>/` directory
+3. Delete `.inc/workspaces/<mission>/` directory
 4. Create GitHub PR via `gh pr create`
 
 **Open Questions (TBD):**
@@ -115,7 +115,7 @@ src/
 ├── cli/
 │   ├── index.ts           # Main CLI entry point (commander)
 │   └── commands/
-│       ├── init.ts        # Initialize .strike directory
+│       ├── init.ts        # Initialize .inc directory
 │       ├── new.ts         # Create new idea
 │       ├── chat.ts        # Interactive chat with agents
 │       ├── status.ts      # Show idea/task status
@@ -130,7 +130,7 @@ src/
 │   └── index.ts           # Re-exports
 └── state/
     ├── schema.ts          # TypeScript types for all state
-    ├── paths.ts           # Path utilities for .strike directory
+    ├── paths.ts           # Path utilities for .inc directory
     ├── io.ts              # Read/write helpers with atomic writes
     └── index.ts           # Re-exports
 ```
@@ -138,7 +138,7 @@ src/
 ## State Files
 
 ```
-.strike/
+.inc/
 ├── daemon.pid             # Daemon process ID
 ├── daemon.log             # Daemon logs
 ├── daemon.json            # Active agents state
@@ -155,7 +155,7 @@ src/
         ├── tasks.json     # Task breakdown (written by Tech Lead)
         └── decisions.md   # Decision log (all agents)
 
-~/.strike/
+~/.inc/
 └── registry.json          # Global index of all missions across projects
 ```
 
@@ -163,31 +163,31 @@ src/
 
 ```bash
 # 1. Start the daemon (watches for missions and spawns agents)
-strike daemon start
+inc daemon start
 
 # 2. Create a mission
-strike new "add dark mode support"
+inc new "add dark mode support"
 # Or for a detailed brief:
-strike new --file brief.md
+inc new --file brief.md
 # Or open $EDITOR:
-strike new
+inc new
 
 # 3. Watch it work
-strike daemon logs -f
+inc daemon logs -f
 
 # 4. Check status anytime
-strike status                    # Current project missions
-strike status -g                 # All missions across projects
-strike status add-dark-mode      # Specific mission details
+inc status                    # Current project missions
+inc status -g                 # All missions across projects
+inc status add-dark-mode      # Specific mission details
 
 # 5. When PM finishes spec, approve to continue
-strike approve spec add-dark-mode
+inc approve spec add-dark-mode
 
 # 6. When Tech Lead finishes plan, approve to start coding
-strike approve plan add-dark-mode
+inc approve plan add-dark-mode
 
 # 7. When all tasks done and PR ready, approve to complete
-strike approve pr add-dark-mode
+inc approve pr add-dark-mode
 ```
 
 ## Workflow (Detailed)
@@ -196,9 +196,9 @@ strike approve pr add-dark-mode
 ┌─────────────────────────────────────────────────────────────────────────┐
 │ 1. CREATE MISSION                                                       │
 ├─────────────────────────────────────────────────────────────────────────┤
-│ $ strike new "add dark mode"                                            │
+│ $ inc new "add dark mode"                                            │
 │                                                                         │
-│ Creates: .strike/missions/add-dark-mode/mission.json                    │
+│ Creates: .inc/missions/add-dark-mode/mission.json                    │
 │ Status:  new                                                            │
 │                                                                         │
 │ Daemon sees "new" → sets status to "spec_in_progress" → spawns PM       │
@@ -212,7 +212,7 @@ strike approve pr add-dark-mode
 │ (if blocked), otherwise writes spec.md                                  │
 │                                                                         │
 │ When done:                                                              │
-│   - Writes: .strike/missions/add-dark-mode/spec.md                      │
+│   - Writes: .inc/missions/add-dark-mode/spec.md                      │
 │   - Sets status: spec_complete                                          │
 │   - Sets needs_attention: { from: "pm", question: "please review" }     │
 │                                                                         │
@@ -223,7 +223,7 @@ strike approve pr add-dark-mode
 ┌─────────────────────────────────────────────────────────────────────────┐
 │ 3. USER APPROVES SPEC                                                   │
 ├─────────────────────────────────────────────────────────────────────────┤
-│ $ strike approve spec add-dark-mode                                     │
+│ $ inc approve spec add-dark-mode                                     │
 │                                                                         │
 │ Sets status: plan_in_progress                                           │
 │ Clears needs_attention                                                  │
@@ -249,7 +249,7 @@ strike approve pr add-dark-mode
 ┌─────────────────────────────────────────────────────────────────────────┐
 │ 5. USER APPROVES PLAN                                                   │
 ├─────────────────────────────────────────────────────────────────────────┤
-│ $ strike approve plan add-dark-mode                                     │
+│ $ inc approve plan add-dark-mode                                     │
 │                                                                         │
 │ Sets status: coding                                                     │
 │                                                                         │
@@ -262,7 +262,7 @@ strike approve pr add-dark-mode
 │ 6. CODER AGENTS WORK (PARALLEL)                                         │
 ├─────────────────────────────────────────────────────────────────────────┤
 │ Each Coder:                                                             │
-│   - Works in: .strike/workspaces/add-dark-mode/task-1/                  │
+│   - Works in: .inc/workspaces/add-dark-mode/task-1/                  │
 │   - Reads spec.md, architecture.md, their task from tasks.json          │
 │   - Writes code, runs tests                                             │
 │   - Creates jj commit with task description                             │
@@ -280,7 +280,7 @@ strike approve pr add-dark-mode
 ┌─────────────────────────────────────────────────────────────────────────┐
 │ 7. USER APPROVES PR                                                     │
 ├─────────────────────────────────────────────────────────────────────────┤
-│ $ strike approve pr add-dark-mode                                       │
+│ $ inc approve pr add-dark-mode                                       │
 │                                                                         │
 │ Sets status: done                                                       │
 │                                                                         │
@@ -294,19 +294,19 @@ You can also drive agents manually via chat instead of daemon:
 
 ```bash
 # Chat with PM about a mission
-strike chat add-dark-mode -r pm
+inc chat add-dark-mode -r pm
 
 # Chat with Tech Lead
-strike chat add-dark-mode -r tech-lead
+inc chat add-dark-mode -r tech-lead
 
 # Chat with Coder for specific task
-strike chat add-dark-mode -r coder -t 1
+inc chat add-dark-mode -r coder -t 1
 ```
 
 Chat features:
 - Multiline input: type lines, empty line to send
 - Animated spinner while thinking
-- Transcripts saved to `.strike/missions/<id>/chats/`
+- Transcripts saved to `.inc/missions/<id>/chats/`
 - Recent chat summaries loaded for context
 
 ---
@@ -329,9 +329,9 @@ Chat features:
 
 3. **Cost tracking**: Should we track API spend per mission? Useful for understanding ROI.
 
-4. **Rollback**: If a Coder produces bad code that passes tests, how do we recover? Tech Lead review should catch most issues, but might need `strike rollback <mission> <task-id>`.
+4. **Rollback**: If a Coder produces bad code that passes tests, how do we recover? Tech Lead review should catch most issues, but might need `inc rollback <mission> <task-id>`.
 
-5. **Human teammates**: How do PRs from Strike interact with PRs from human engineers? Probably fine — Strike PRs go through normal review process.
+5. **Human teammates**: How do PRs from Inc interact with PRs from human engineers? Probably fine — Inc PRs go through normal review process.
 
 ---
 
@@ -339,30 +339,30 @@ Chat features:
 
 ### Mission Creation with Rich Context
 
-Currently `strike new "description"` only takes a single line. Options:
-- `strike new` with no args opens $EDITOR for multiline brief
-- `strike new --file brief.md` reads from file
-- `strike new` then first chat message becomes the brief
+Currently `inc new "description"` only takes a single line. Options:
+- `inc new` with no args opens $EDITOR for multiline brief
+- `inc new --file brief.md` reads from file
+- `inc new` then first chat message becomes the brief
 
 ### Chat Redesign
 
 The chat experience needs rethinking:
 
-1. **Fresh sessions**: Each `strike chat` should be a net-new session, not resuming old context. The agent should read current state from files (mission.json, spec.md, etc.) rather than relying on conversation history.
+1. **Fresh sessions**: Each `inc chat` should be a net-new session, not resuming old context. The agent should read current state from files (mission.json, spec.md, etc.) rather than relying on conversation history.
 
-2. **Chat history with summaries**: Save recent chats to `.strike/missions/<id>/chats/` with auto-generated summaries. Agent can read summaries for quick context on what was discussed before.
+2. **Chat history with summaries**: Save recent chats to `.inc/missions/<id>/chats/` with auto-generated summaries. Agent can read summaries for quick context on what was discussed before.
 
 3. **Natural language as primary interface**: Chat should be able to do everything the CLI can (except spawn another chat):
-   - "create a new mission for adding dark mode" → runs `strike new`
-   - "what's the status?" → runs `strike status`
-   - "approve the spec" → runs `strike approve spec`
-   - "show me all my missions" → runs `strike status -g`
+   - "create a new mission for adding dark mode" → runs `inc new`
+   - "what's the status?" → runs `inc status`
+   - "approve the spec" → runs `inc approve spec`
+   - "show me all my missions" → runs `inc status -g`
 
-   This makes `strike chat` the main entry point. Other commands become shortcuts/scripting interface.
+   This makes `inc chat` the main entry point. Other commands become shortcuts/scripting interface.
 
 4. **Conversation structure**:
    ```
-   .strike/missions/<id>/
+   .inc/missions/<id>/
    ├── chats/
    │   ├── 2024-01-24-1030.json   # Full transcript
    │   ├── 2024-01-24-1030.summary.md  # Auto-generated summary

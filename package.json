@@ -1,6 +1,6 @@
 {
   "name": "inc",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "An experiment with Claude Code orchestration",
   "main": "dist/cli/index.js",
   "bin": {
@@ -11,9 +11,17 @@
     "dev": "tsc --watch",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": ["claude", "agent", "orchestration", "ai", "cli"],
+  "author": "Nick DiRienzo",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nickdirienzo/inc.git"
+  },
+  "bugs": {
+    "url": "https://github.com/nickdirienzo/inc/issues"
+  },
+  "homepage": "https://github.com/nickdirienzo/inc#readme",
   "type": "module",
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.19",
