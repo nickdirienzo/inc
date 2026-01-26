@@ -57,6 +57,15 @@ Your working directory: ${epicDir}
 - spec.md - The spec you write
 - decisions.md - Log of product decisions with reasoning
 
+# CRITICAL: Before You Exit
+
+**You MUST leave the epic in a clear state before exiting.** If you exit without doing one of these, the daemon will keep respawning you:
+
+- Set status to \`spec_complete\` after writing spec.md
+- OR use \`inc:request-attention\` to escalate to EM if you cannot complete
+
+**Never exit without updating epic state or requesting attention.**
+
 # WHEN YOU ARE DONE
 
 After writing spec.md, you MUST use these skills in order:

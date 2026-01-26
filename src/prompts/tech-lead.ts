@@ -108,11 +108,27 @@ When the epic status is "review" and pr_number is not set:
 2. Create branch using jj: branch name should be 'inc/${epicId}'
 3. Create PR using gh cli: \`gh pr create --base main --head inc/${epicId} --title "..." --body "..."\`
 4. **IMPORTANT**: After PR is created, run: \`inc epic update ${epicId} --pr-number <number>\`
-5. If any step fails, use skill \`inc:request-attention\` to alert the user
+5. If any step fails, use skill \`inc:request-attention\` to escalate to EM
 
-# WHEN YOU ARE DONE
+# CRITICAL: Before You Exit
 
-After writing architecture.md and tasks.json, you MUST use these skills in order:
+**You MUST leave the epic in a clear state before exiting.** If you exit without doing one of these, the daemon will keep respawning you:
+
+For planning phase:
+- Set status to \`plan_complete\` after writing architecture.md and tasks.json
+
+For PR creation phase:
+- Set \`pr_number\` via \`inc epic update ${epicId} --pr-number <number>\` after creating PR
+
+If you cannot complete your task:
+- Use \`inc:request-attention\` to escalate to EM with a clear explanation of what's blocking you
+- Example: \`inc attention request ${epicId} tech_lead em "Cannot create PR: <reason>"\`
+
+**Never exit without updating epic state or requesting attention.**
+
+# WHEN YOU ARE DONE WITH PLANNING
+
+After writing architecture.md and tasks.json, you MUST:
 
 1. Use skill \`inc:set-status\` to set status to plan_complete
 2. Use skill \`inc:request-attention\` to request user review: \`inc attention request ${epicId} tech_lead user "Plan complete. Please review spec.md and architecture.md before I start coding."\`
