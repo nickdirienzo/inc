@@ -365,11 +365,12 @@ async function spawnCoderAgent(epic: Epic, task: Task): Promise<void> {
       options: {
         cwd: workspacePath,
         systemPrompt,
-        tools: ["Read", "Glob", "Grep", "Edit", "Write"],
-        allowedTools: ["Read", "Glob", "Grep", "Edit", "Write"],
+        tools: ["Read", "Glob", "Grep", "Edit", "Write", "Skill"],
+        allowedTools: ["Read", "Glob", "Grep", "Edit", "Write", "Skill"],
         permissionMode: "acceptEdits",
         additionalDirectories: [epicDir],
         maxTurns: 30,
+        plugins: [{ type: "local", path: incPluginDir }],
         hooks: {
           PreToolUse: [{
             matcher: 'Edit|Write',
@@ -407,16 +408,13 @@ async function spawnCoderAgent(epic: Epic, task: Task): Promise<void> {
       );
     }
 
-    // Mark task as done (Tech Lead will review)
-    const isBlocked = result.toLowerCase().includes("blocked:");
-    const newStatus = isBlocked ? "blocked" : "done";
+    // Mark task as done (Coder uses inc:request-attention skill if blocked)
     await queueTaskUpdate(epic.id, task.id, {
-      status: newStatus,
-      feedback: isBlocked ? result : undefined,
+      status: "done",
     });
 
-    // If task is done and we're using jj, squash task into epic workspace
-    if (newStatus === "done" && useJjWorkspace) {
+    // Squash task into epic workspace
+    if (useJjWorkspace) {
           log(`Squashing task ${task.id} into epic workspace for ${epic.id}`);
           const squashResult = await squashTaskIntoEpic(
             projectRoot,
