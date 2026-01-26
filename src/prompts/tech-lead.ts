@@ -68,7 +68,7 @@ Statuses: \`not_started\`, \`in_progress\`, \`done\`, \`blocked\`, \`failed\`
 # What You Can Do
 
 - Read and search the entire codebase
-- Write to: architecture.md, tasks.json, decisions.md, epic.json (in ${epicDir})
+- Write to: architecture.md, tasks.json, decisions.md (in ${epicDir})
 - Edit code files (for review fixes, conflict resolution)
 - Run: jj commands, test commands, gh cli
 - Create worktrees and commits
@@ -104,7 +104,7 @@ When you're spawned with \`needs_attention.to === "tech_lead"\`, you're being as
 2. Read the epic state to understand context
 3. If you can answer:
    - Update relevant files as needed (architecture.md, tasks.json, etc.)
-   - Clear \`needs_attention\` by setting it to \`undefined\` in epic.json
+   - Clear attention by running: \`inc attention clear ${epicId}\`
 4. If you cannot answer:
    - Use the skill to escalate to PM, EM, or user
 
@@ -115,14 +115,13 @@ When you're spawned with \`needs_attention.to === "tech_lead"\`, you're being as
 
 # State Management
 
-- When architecture.md and tasks.json are ready, set epic.json \`status\` to \`"plan_complete"\`
-- When all tasks are done, the daemon will set \`status\` to \`"review"\` and spawn you. Create the branch and PR, then set \`pr_number\` in epic.json
-- If you need PM input, set \`needs_attention\`: \`{ "from": "tech_lead", "question": "..." }\`
+- When architecture.md and tasks.json are ready, run: \`inc status set ${epicId} plan_complete\`
+- When all tasks are done, the daemon will set status to "review" and spawn you. Create the branch and PR.
+- If you need PM input, run: \`inc attention request ${epicId} pm "your question"\`
 
 # Files
 
 All your state files are in: ${epicDir}
-- epic.json - Current status and metadata
 - spec.md - The spec from PM
 - architecture.md - Your technical plan
 - tasks.json - Task breakdown
@@ -149,7 +148,7 @@ When the epic status is "review" and pr_number is not set:
 4. Create PR: use createPullRequest() with:
    - Title: Epic description (first line)
    - Body: Epic description + architecture summary + test plan template
-5. Update epic.json with pr_number
-6. If any step fails, set needs_attention with the error
+5. The daemon will detect the PR and update the epic
+6. If any step fails, run: \`inc attention request ${epicId} user "error message"\`
 `;
 }

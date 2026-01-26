@@ -144,6 +144,9 @@ export async function createEpicWorkspace(
   );
 
   if (!result.success) {
+    if (result.stderr?.includes("already exists")) {
+      return { success: true, workspacePath };
+    }
     return {
       success: false,
       workspacePath,
@@ -176,6 +179,9 @@ export async function createTaskWorkspace(
   );
 
   if (!result.success) {
+    if (result.stderr?.includes("already exists")) {
+      return { success: true, workspacePath };
+    }
     return {
       success: false,
       workspacePath,

@@ -230,6 +230,7 @@ async function spawnTechLeadAgent(epic: Epic): Promise<void> {
     log(`Failed to create epic workspace for TL ${epic.id}: ${wsResult.error}`);
     epic.needs_attention = {
       from: "tech_lead",
+      to: "user",
       question: `Failed to create epic workspace: ${wsResult.error}`,
     };
     await writeEpic(projectRoot, epic);
@@ -418,6 +419,7 @@ async function spawnCoderAgent(epic: Epic, task: Task): Promise<void> {
             if (currentEpic) {
               currentEpic.needs_attention = {
                 from: "tech_lead",
+                to: "user",
                 question: `Failed to squash task ${task.id} into epic workspace: ${squashResult.error}`,
               };
               await writeEpic(projectRoot, currentEpic);
@@ -474,6 +476,32 @@ async function processQueueRequests(): Promise<void> {
             escalation_count: epic.needs_attention?.escalation_count || 0,
           };
 
+          await writeEpic(projectRoot, epic);
+          await completeRequest(projectRoot, id, { success: true });
+          break;
+        }
+        case "clear-attention": {
+          const epic = await readEpic(projectRoot, request.epicId);
+          if (!epic) {
+            await completeRequest(projectRoot, id, { success: false, error: `Epic ${request.epicId} not found` });
+            break;
+          }
+
+          log(`[Queue] Clearing attention for ${request.epicId}`);
+          delete epic.needs_attention;
+          await writeEpic(projectRoot, epic);
+          await completeRequest(projectRoot, id, { success: true });
+          break;
+        }
+        case "set-status": {
+          const epic = await readEpic(projectRoot, request.epicId);
+          if (!epic) {
+            await completeRequest(projectRoot, id, { success: false, error: `Epic ${request.epicId} not found` });
+            break;
+          }
+
+          log(`[Queue] Setting status for ${request.epicId}: ${request.status}`);
+          epic.status = request.status;
           await writeEpic(projectRoot, epic);
           await completeRequest(projectRoot, id, { success: true });
           break;
@@ -602,7 +630,7 @@ async function checkAndSpawnAgents(): Promise<void> {
 
     // Handle attention routing
     if (epic.needs_attention) {
-      const to = epic.needs_attention.to || "user";
+      const { to } = epic.needs_attention;
 
       if (to === "user") {
         // Skip this epic - user needs to respond (current behavior)
@@ -619,7 +647,7 @@ async function checkAndSpawnAgents(): Promise<void> {
           if (question.includes("approve") && question.includes("spec") && epic.status === "spec_complete") {
             log(`[EM] Auto-approving spec for epic ${epicId}`);
             epic.status = "plan_in_progress";
-            epic.needs_attention = undefined;
+            delete epic.needs_attention;
             await writeEpic(projectRoot, epic);
           } else {
             log(`[EM] Cannot handle question, escalating to user`);
@@ -689,6 +717,7 @@ async function checkAndSpawnAgents(): Promise<void> {
             log(`Failed to create epic workspace for ${epicId}: ${wsResult.error}`);
             epic.needs_attention = {
               from: "tech_lead",
+              to: "user",
               question: `Failed to create epic workspace: ${wsResult.error}`,
             };
             await writeEpic(projectRoot, epic);

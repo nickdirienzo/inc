@@ -277,7 +277,7 @@ export async function incApprove(
   }
 
   epic.status = newStatus;
-  epic.needs_attention = undefined;
+  delete epic.needs_attention;
   await writeEpic(actualProjectRoot, epic);
 
   return `${message}\nEpic ${epicId} status: ${newStatus}`;
