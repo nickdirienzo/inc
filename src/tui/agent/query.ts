@@ -9,6 +9,7 @@ import { query } from "@anthropic-ai/claude-agent-sdk";
 import { getTuiAgentPrompt } from "../../prompts/index.js";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import type { Registry } from "../../registry/index.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -25,6 +26,22 @@ export function clearSession(): void {
 }
 
 /**
+ * Build a map of epic IDs to project root paths from the registry
+ *
+ * @param registry - The registry object containing all epic entries
+ * @returns A map where keys are epic IDs and values are project root paths
+ */
+export function buildProjectContext(registry: Registry): Record<string, string> {
+  const projectContext: Record<string, string> = {};
+
+  for (const [epicId, entry] of Object.entries(registry.entries)) {
+    projectContext[epicId] = entry.projectPath;
+  }
+
+  return projectContext;
+}
+
+/**
  * Response types from the agent
  */
 export type AgentResponse =
@@ -37,7 +54,7 @@ export type AgentResponse =
  * Execute a TUI agent query with streaming responses
  *
  * @param prompt - The user's message/question
- * @param projectRoot - The project root directory for tool execution context
+ * @param projectRoot - The working directory for tool execution context (typically ~/.inc for TUI agent)
  * @yields AgentResponse objects as they arrive from the SDK
  */
 export async function* executeTuiAgentQuery(
