@@ -30,7 +30,7 @@ import {
   type ActiveAgent,
   type QueueRequest,
 } from "../state/index.js";
-import { getPmPrompt, getTechLeadPrompt, getCoderPrompt } from "../prompts/index.js";
+import { getPmPrompt, getTechLeadPrompt, getCoderPrompt, getEmPrompt } from "../prompts/index.js";
 import {
   createTaskWorkspace,
   createEpicWorkspace,
@@ -452,6 +452,70 @@ async function spawnCoderAgent(epic: Epic, task: Task): Promise<void> {
   }
 }
 
+async function spawnEmAgent(epic: Epic): Promise<void> {
+  const agentKey = `em:${epic.id}`;
+
+  if (activeAgents.has(agentKey)) {
+    return;
+  }
+
+  log(`Spawning EM agent for: ${epic.id}`);
+
+  const agent: ActiveAgent = {
+    epic_id: epic.id,
+    role: "em",
+    session_id: "",
+    started_at: new Date().toISOString(),
+  };
+  activeAgents.set(agentKey, agent);
+  await updateDaemonState();
+
+  const logger = new AgentLogger(projectRoot, epic.id, "em");
+
+  try {
+    const epicDir = getEpicDir(projectRoot, epic.id);
+    const systemPrompt = getEmPrompt(epic.id, epicDir);
+
+    const queryHandle = query({
+      prompt: "Review the attention request and handle it appropriately.",
+      options: {
+        cwd: projectRoot,
+        systemPrompt,
+        tools: ["Read", "Glob", "Grep", "Skill"],
+        allowedTools: ["Read", "Glob", "Grep", "Skill"],
+        permissionMode: "acceptEdits",
+        additionalDirectories: [epicDir],
+        maxTurns: 20,
+        plugins: [{ type: "local", path: incPluginDir }],
+      },
+    });
+    agent.query_handle = queryHandle;
+
+    for await (const message of queryHandle) {
+      await logger.log(message);
+
+      if (message.type === "system" && "subtype" in message && message.subtype === "init") {
+        agent.session_id = message.session_id;
+        await updateDaemonState();
+      }
+
+      if (message.type === "result") {
+        if (message.subtype === "success") {
+          log(`EM agent completed for ${epic.id}: ${message.result}`);
+        } else {
+          log(`EM agent error for ${epic.id}: ${message.errors?.join(", ") || message.subtype}`);
+        }
+      }
+    }
+  } catch (error) {
+    log(`EM agent failed for ${epic.id}: ${error}`);
+  } finally {
+    await logger.close();
+    activeAgents.delete(agentKey);
+    await updateDaemonState();
+  }
+}
+
 async function processQueueRequests(): Promise<void> {
   const requests = await getPendingRequests(projectRoot);
 
@@ -723,28 +787,12 @@ async function checkAndSpawnAgents(): Promise<void> {
 
       switch (to) {
         case "em":
-          // Handle EM attention requests (auto-approval logic)
-          const question = epic.needs_attention.question.toLowerCase();
-          if (question.includes("approve") && question.includes("spec") && epic.status === "spec_complete") {
-            log(`[EM] Auto-approving spec for epic ${epicId}`);
-            epic.status = "plan_in_progress";
-            delete epic.needs_attention;
-            await writeEpic(projectRoot, epic);
-          } else {
-            log(`[EM] Cannot handle question, escalating to user`);
-            epic.needs_attention = {
-              from: "em",
-              to: "user",
-              question: `EM cannot handle: ${epic.needs_attention.question}`,
-              escalation_count: (epic.needs_attention.escalation_count || 0) + 1,
-            };
-            await writeEpic(projectRoot, epic);
-          }
+          // Spawn EM agent to handle the request
+          spawnEmAgent(epic);
           break;
 
         case "pm":
           // Spawn PM agent to handle the attention request
-          // PM will read needs_attention and respond
           spawnPmAgent(epic);
           break;
 
@@ -754,7 +802,7 @@ async function checkAndSpawnAgents(): Promise<void> {
           break;
 
         default:
-          log(`[EM] Unknown attention target: ${to}`);
+          log(`Unknown attention target: ${to}, escalating to user`);
           epic.needs_attention = {
             from: "em",
             to: "user",
