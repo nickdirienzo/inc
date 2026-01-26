@@ -10,7 +10,7 @@
 
 import { watch, FSWatcher } from "chokidar";
 import { readRegistry, getRegistryPath } from "../../registry/index.js";
-import { readEpic, getEpicJsonPath } from "../../state/index.js";
+import { readEpic, getEpicJsonPath, readTasks, getTasksPath } from "../../state/index.js";
 import type { EpicWithProject } from "./types.js";
 
 export interface UseEpicsResult {
@@ -37,10 +37,27 @@ async function loadEpics(): Promise<EpicWithProject[]> {
   for (const entry of Object.values(registry.entries)) {
     const epic = await readEpic(entry.projectPath, entry.epicId);
     if (epic) {
-      epics.push({
+      const epicWithProject: EpicWithProject = {
         ...epic,
         projectPath: entry.projectPath,
-      });
+      };
+
+      // Load task completion data for epics in coding status
+      if (epic.status === "coding") {
+        try {
+          const tasksFile = await readTasks(entry.projectPath, entry.epicId);
+          if (tasksFile && tasksFile.tasks.length > 0) {
+            const completed = tasksFile.tasks.filter(t => t.status === "done").length;
+            epicWithProject.tasksCompleted = completed;
+            epicWithProject.tasksTotal = tasksFile.tasks.length;
+          }
+        } catch (error) {
+          // Silently ignore task loading errors - don't crash the TUI
+          // Task progress simply won't be displayed for this epic
+        }
+      }
+
+      epics.push(epicWithProject);
     }
   }
 
@@ -156,6 +173,23 @@ export function createUseEpics(
       });
 
       state.watchers.push(epicWatcher);
+
+      // Watch tasks.json for this epic
+      const tasksPath = getTasksPath(entry.projectPath, entry.epicId);
+      const tasksWatcher = watch(tasksPath, {
+        ignoreInitial: true,
+        persistent: true,
+      });
+
+      tasksWatcher.on("change", () => {
+        scheduleUpdate();
+      });
+
+      tasksWatcher.on("add", () => {
+        scheduleUpdate();
+      });
+
+      state.watchers.push(tasksWatcher);
     }
   }
 

@@ -1,5 +1,6 @@
 import React from "react";
 import { Box, Text } from "ink";
+import { basename } from "node:path";
 import type { EpicWithProject } from "../state/types.js";
 import type { EpicStatus } from "../../state/schema.js";
 
@@ -31,6 +32,14 @@ function getStatusColor(status: EpicStatus): string {
     default:
       return "white";
   }
+}
+
+/**
+ * Get a display name for a project path
+ * Uses directory basename to keep display clean
+ */
+function getProjectDisplayName(projectPath: string): string {
+  return basename(projectPath);
 }
 
 /**
@@ -88,15 +97,57 @@ function categorizeEpics(
 }
 
 /**
- * Render a single epic entry
+ * Group epics by project within a list
+ * Returns map of projectPath -> epics, sorted by most recent epic in each project
+ */
+function groupByProject(
+  epics: EpicWithProject[]
+): Map<string, EpicWithProject[]> {
+  // Group epics by project path
+  const projectMap = new Map<string, EpicWithProject[]>();
+
+  for (const epic of epics) {
+    const existing = projectMap.get(epic.projectPath) || [];
+    existing.push(epic);
+    projectMap.set(epic.projectPath, existing);
+  }
+
+  // Sort epics within each project by updated_at (most recent first)
+  for (const [projectPath, projectEpics] of projectMap.entries()) {
+    projectEpics.sort((a, b) =>
+      new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+    );
+  }
+
+  // Sort projects by most recent epic update
+  const sortedProjects = Array.from(projectMap.entries()).sort((a, b) => {
+    const aLatest = new Date(a[1][0].updated_at).getTime();
+    const bLatest = new Date(b[1][0].updated_at).getTime();
+    return bLatest - aLatest;
+  });
+
+  return new Map(sortedProjects);
+}
+
+/**
+ * Render a single epic entry with description and task progress
  */
 function EpicEntry({ epic }: { epic: EpicWithProject }) {
   const statusColor = getStatusColor(epic.status);
   const hasAttention = epic.needs_attention !== undefined;
   const prInfo = epic.pr_number ? ` (PR #${epic.pr_number})` : "";
 
+  // Show task progress only for coding status with tasks
+  const showProgress = epic.status === "coding" &&
+                       epic.tasksTotal !== undefined &&
+                       epic.tasksTotal > 0;
+  const progressInfo = showProgress
+    ? ` [${epic.tasksCompleted}/${epic.tasksTotal} tasks]`
+    : "";
+
   return (
     <Box flexDirection="column" marginBottom={1}>
+      {/* First line: ID, status, PR, progress */}
       <Box flexDirection="row">
         {hasAttention && (
           <Text color="yellow" bold>
@@ -106,10 +157,13 @@ function EpicEntry({ epic }: { epic: EpicWithProject }) {
         <Text color="cyan">{epic.id}</Text>
         <Text color={statusColor}> [{epic.status}]</Text>
         {prInfo && <Text color="gray">{prInfo}</Text>}
+        {progressInfo && <Text color="green">{progressInfo}</Text>}
       </Box>
+
+      {/* Second line: Description */}
       <Box paddingLeft={hasAttention ? 3 : 0}>
         <Text dimColor wrap="truncate">
-          {epic.projectPath}
+          {epic.description}
         </Text>
       </Box>
     </Box>
@@ -117,7 +171,33 @@ function EpicEntry({ epic }: { epic: EpicWithProject }) {
 }
 
 /**
- * Render a section with header and epics
+ * Render a project group with header and epics
+ */
+function ProjectGroup({
+  projectPath,
+  epics,
+}: {
+  projectPath: string;
+  epics: EpicWithProject[];
+}) {
+  return (
+    <Box flexDirection="column" marginBottom={1}>
+      <Box marginBottom={0}>
+        <Text bold color="white" dimColor>
+          {getProjectDisplayName(projectPath)}
+        </Text>
+      </Box>
+      <Box flexDirection="column" paddingLeft={2}>
+        {epics.map((epic) => (
+          <EpicEntry key={epic.id} epic={epic} />
+        ))}
+      </Box>
+    </Box>
+  );
+}
+
+/**
+ * Render a section with header and project-grouped epics
  */
 function Section({
   title,
@@ -132,6 +212,8 @@ function Section({
   emptyMessage: string;
   color: string;
 }) {
+  const projectGroups = groupByProject(epics);
+
   return (
     <Box flexDirection="column" marginBottom={1}>
       <Box marginBottom={1}>
@@ -145,8 +227,12 @@ function Section({
         </Box>
       ) : (
         <Box flexDirection="column" paddingLeft={2}>
-          {epics.map((epic) => (
-            <EpicEntry key={epic.id} epic={epic} />
+          {Array.from(projectGroups.entries()).map(([projectPath, projectEpics]) => (
+            <ProjectGroup
+              key={projectPath}
+              projectPath={projectPath}
+              epics={projectEpics}
+            />
           ))}
         </Box>
       )}
