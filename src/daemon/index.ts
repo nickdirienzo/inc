@@ -179,8 +179,8 @@ async function spawnPmAgent(epic: Epic): Promise<void> {
       options: {
         cwd: projectRoot,
         systemPrompt,
-        tools: ["Read", "Glob", "Grep", "Edit", "Write", "Skill"],
-        allowedTools: ["Read", "Glob", "Grep", "Edit", "Write", "Skill"],
+        tools: ["Read", "Glob", "Grep", "Edit", "Write", "Bash", "Skill"],
+        allowedTools: ["Read", "Glob", "Grep", "Edit", "Write", "Bash(inc:*)", "Skill"],
         permissionMode: "acceptEdits",
         additionalDirectories: [epicDir],
         maxTurns: 50,
@@ -365,8 +365,8 @@ async function spawnCoderAgent(epic: Epic, task: Task): Promise<void> {
       options: {
         cwd: workspacePath,
         systemPrompt,
-        tools: ["Read", "Glob", "Grep", "Edit", "Write", "Skill"],
-        allowedTools: ["Read", "Glob", "Grep", "Edit", "Write", "Skill"],
+        tools: ["Read", "Glob", "Grep", "Edit", "Write", "Bash", "Skill"],
+        allowedTools: ["Read", "Glob", "Grep", "Edit", "Write", "Bash(inc:*)", "Skill"],
         permissionMode: "acceptEdits",
         additionalDirectories: [epicDir],
         maxTurns: 30,
@@ -481,8 +481,8 @@ async function spawnEmAgent(epic: Epic): Promise<void> {
       options: {
         cwd: projectRoot,
         systemPrompt,
-        tools: ["Read", "Glob", "Grep", "Skill"],
-        allowedTools: ["Read", "Glob", "Grep", "Skill"],
+        tools: ["Read", "Glob", "Grep", "Bash", "Skill"],
+        allowedTools: ["Read", "Glob", "Grep", "Bash(inc:*)", "Skill"],
         permissionMode: "acceptEdits",
         additionalDirectories: [epicDir],
         maxTurns: 20,
