@@ -2,9 +2,9 @@
  * App root component for Inc Epic Control TUI
  *
  * Implements three-pane layout:
- * - Top 40%: EpicOverview
- * - Bottom-left 60% height, 60% width: ChatInterface
- * - Bottom-right 60% height, 40% width: ContextPane (conditional)
+ * - Top 20%: EpicOverview
+ * - Bottom-left 80% height, 60% width: ChatInterface
+ * - Bottom-right 80% height, 40% width: ContextPane (conditional)
  */
 
 import React, { useState, useEffect } from "react";
@@ -307,16 +307,16 @@ export function App() {
 
   return (
     <Box flexDirection="column" width="100%" height="100%" overflow="hidden">
-      {/* Top 40%: Epic Overview */}
-      <Box height="40%" flexDirection="column" overflow="hidden">
+      {/* Top 20%: Epic Overview */}
+      <Box height="20%" flexDirection="column" overflow="hidden">
         <EpicOverview
           epics={state.epics.epics}
           needsAttention={state.epics.needsAttention}
         />
       </Box>
 
-      {/* Bottom 60%: Chat and Context Pane */}
-      <Box height="60%" flexDirection="row" overflow="hidden">
+      {/* Bottom 80%: Chat and Context Pane */}
+      <Box height="80%" flexDirection="row" overflow="hidden">
         {/* Bottom-left: Chat Interface (60% width or 100% if no context pane) */}
         <Box
           width={state.contextFile ? "60%" : "100%"}
