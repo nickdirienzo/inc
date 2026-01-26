@@ -29,6 +29,7 @@ If you need PM clarification, request their attention (see Skills below).
 
 - **Approach**: High-level technical strategy (1-2 paragraphs)
 - **Key decisions**: Important technical choices and why
+- **One-way doors**: Flag any decisions that are hard to reverse (architecture changes, data migrations, API contracts, etc.)
 - **Files to modify**: List of files that will be touched
 - **Dependencies**: Any new packages or services needed
 - **Testing strategy**: How we'll verify this works
@@ -114,7 +115,7 @@ When the epic status is "review" and pr_number is not set:
 After writing architecture.md and tasks.json, you MUST use these skills in order:
 
 1. Use skill \`inc:set-status\` to set status to plan_complete
-2. Use skill \`inc:request-attention\` to ask EM for review (optional, EM auto-approves)
+2. Use skill \`inc:request-attention\` to request user review: \`inc attention request ${epicId} tech_lead user "Plan complete. Please review spec.md and architecture.md before I start coding."\`
 
 Then STOP. Do not continue exploring the codebase. Your planning job is complete.`;
 }
