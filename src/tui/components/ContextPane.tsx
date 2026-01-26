@@ -47,7 +47,7 @@ export const ContextPane: React.FC<ContextPaneProps> = ({
       borderStyle="single"
       borderColor="cyan"
       paddingX={1}
-      width="40%"
+      width="30%"
       height="100%"
     >
       {/* Header with file path */}
