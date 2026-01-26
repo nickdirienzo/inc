@@ -697,3 +697,25 @@ export async function updateDefaultWorkspace(
 
   return { success: true };
 }
+
+export async function rebaseEpicWorkspace(
+  projectRoot: string,
+  epicId: string
+): Promise<{ success: boolean; error?: string }> {
+  const workspaceName = `inc-${epicId}`;
+
+  // Rebase the epic workspace onto main@origin
+  const rebaseResult = await runJj(
+    ["rebase", "-d", "main@origin", "-r", `${workspaceName}@`],
+    { cwd: projectRoot }
+  );
+
+  if (!rebaseResult.success) {
+    return {
+      success: false,
+      error: rebaseResult.stderr,
+    };
+  }
+
+  return { success: true };
+}
