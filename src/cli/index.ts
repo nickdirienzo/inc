@@ -11,6 +11,7 @@ import { daemonCommand } from "./commands/daemon.js";
 import { tuiCommand } from "./commands/tui.js";
 import { taskCommand } from "./commands/task.js";
 import { attentionCommand } from "./commands/attention.js";
+import { epicCommand } from "./commands/epic.js";
 
 const program = new Command();
 
@@ -29,5 +30,6 @@ program.addCommand(daemonCommand);
 program.addCommand(tuiCommand);
 program.addCommand(taskCommand);
 program.addCommand(attentionCommand);
+program.addCommand(epicCommand);
 
 program.parse();

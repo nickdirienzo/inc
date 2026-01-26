@@ -36,7 +36,16 @@ export interface SetStatusRequest {
   status: "new" | "spec_in_progress" | "spec_complete" | "plan_in_progress" | "plan_complete" | "coding" | "review" | "done" | "abandoned";
 }
 
-export type QueueRequest = TaskStatusRequest | AttentionRequest | ClearAttentionRequest | SetStatusRequest;
+export interface UpdateEpicRequest {
+  type: "update-epic";
+  epicId: string;
+  fields: {
+    pr_number?: number;
+    status?: "new" | "spec_in_progress" | "spec_complete" | "plan_in_progress" | "plan_complete" | "coding" | "review" | "done" | "abandoned";
+  };
+}
+
+export type QueueRequest = TaskStatusRequest | AttentionRequest | ClearAttentionRequest | SetStatusRequest | UpdateEpicRequest;
 
 export interface QueueResponse {
   success: boolean;

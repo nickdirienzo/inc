@@ -145,10 +145,12 @@ When the epic status is "review" and pr_number is not set:
 1. Ensure all tasks are squashed into epic workspace (daemon does this)
 2. Detect default branch: use getDefaultBranch() helper from jj module
 3. Create branch: use createBranchFromEpic() with branch name 'inc/<epic-id>'
-4. Create PR: use createPullRequest() with:
+4. Create PR using gh cli: \`gh pr create --base <default-branch> --head inc/${epicId} --title "..." --body "..."\`
    - Title: Epic description (first line)
    - Body: Epic description + architecture summary + test plan template
-5. The daemon will detect the PR and update the epic
+5. **IMPORTANT**: After PR is created, extract the PR number from gh output and run:
+   \`inc epic update ${epicId} --pr-number <number>\`
+   This is required for the daemon to track the PR status.
 6. If any step fails, run: \`inc attention request ${epicId} user "error message"\`
 `;
 }
