@@ -17,6 +17,7 @@ import { AgentResponseState, processAgentResponse } from "../state/useAgent.js";
 import type { AgentMessage, ContextFile } from "../state/types.js";
 import type { UseEpicsResult } from "../state/useEpics.js";
 import { executeTuiAgentQuery } from "../agent/query.js";
+import { getIncHome } from "../../state/paths.js";
 
 /**
  * Maximum number of messages to keep in chat history
@@ -170,8 +171,8 @@ export function App() {
     }));
 
     try {
-      // Get project root (can be refined later)
-      const projectRoot = process.cwd();
+      // TUI agent operates from ~/.inc (project-agnostic)
+      const projectRoot = getIncHome();
 
       // Initialize agent message that we'll update incrementally
       let agentMessageContent = "";
