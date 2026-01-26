@@ -86,7 +86,7 @@ export interface DaemonState {
 
 export interface ActiveAgent {
   epic_id: string;
-  role: "pm" | "tech_lead" | "coder";
+  role: "pm" | "tech_lead" | "coder" | "em";
   task_id?: number;
   session_id: string;
   started_at: string;
