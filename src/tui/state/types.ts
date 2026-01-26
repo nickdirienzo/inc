@@ -9,6 +9,8 @@ import { Epic, NeedsAttention } from "../../state/index.js";
  */
 export interface EpicWithProject extends Epic {
   projectPath: string;
+  tasksCompleted?: number;
+  tasksTotal?: number;
 }
 
 /**
