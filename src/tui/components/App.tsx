@@ -1,15 +1,15 @@
 /**
  * App root component for Inc Epic Control TUI
  *
- * Implements three-pane layout:
- * - Top 20%: EpicOverview
- * - Bottom-left 80% height, 60% width: ChatInterface
- * - Bottom-right 80% height, 40% width: ContextPane (conditional)
+ * Implements three-column layout:
+ * - Left 30%: EpicList (full height)
+ * - Middle 40%/70%: ChatInterface (expands when Context is hidden)
+ * - Right 30%: ContextPane (conditional)
  */
 
 import React, { useState, useEffect } from "react";
 import { Box, Text } from "ink";
-import { EpicOverview } from "./EpicOverview.js";
+import { EpicList } from "./EpicList.js";
 import { ChatInterface } from "./ChatInterface.js";
 import { ContextPane } from "./ContextPane.js";
 import { createUseEpics } from "../state/useEpics.js";
@@ -306,38 +306,33 @@ export function App() {
   }
 
   return (
-    <Box flexDirection="column" width="100%" height="100%" overflow="hidden">
-      {/* Top 20%: Epic Overview */}
-      <Box height="20%" flexDirection="column" overflow="hidden">
-        <EpicOverview
-          epics={state.epics.epics}
-          needsAttention={state.epics.needsAttention}
+    <Box flexDirection="row" width="100%" height="100%" overflow="hidden">
+      {/* Left column: Epic List (30% width, full height) */}
+      <EpicList
+        epics={state.epics.epics}
+        needsAttention={state.epics.needsAttention}
+      />
+
+      {/* Middle column: Chat Interface (40% or 70% width, full height) */}
+      <Box
+        width={state.contextFile ? "40%" : "70%"}
+        flexDirection="column"
+        overflow="hidden"
+      >
+        <ChatInterface
+          messages={state.messages}
+          isThinking={state.isThinking}
+          onSendMessage={handleSendMessage}
         />
       </Box>
 
-      {/* Bottom 80%: Chat and Context Pane */}
-      <Box height="80%" flexDirection="row" overflow="hidden">
-        {/* Bottom-left: Chat Interface (60% width or 100% if no context pane) */}
-        <Box
-          width={state.contextFile ? "60%" : "100%"}
-          flexDirection="column"
-          overflow="hidden"
-        >
-          <ChatInterface
-            messages={state.messages}
-            isThinking={state.isThinking}
-            onSendMessage={handleSendMessage}
-          />
-        </Box>
-
-        {/* Bottom-right: Context Pane (40% width, conditional) */}
-        {state.contextFile && (
-          <ContextPane
-            contextFile={state.contextFile}
-            clearContextFile={clearContextFile}
-          />
-        )}
-      </Box>
+      {/* Right column: Context Pane (30% width, conditional) */}
+      {state.contextFile && (
+        <ContextPane
+          contextFile={state.contextFile}
+          clearContextFile={clearContextFile}
+        />
+      )}
     </Box>
   );
 }
