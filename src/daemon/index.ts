@@ -232,9 +232,18 @@ async function spawnTechLeadAgent(epic: Epic): Promise<void> {
 
   log(`Spawning Tech Lead agent for: ${epic.id}`);
 
+  const agent: ActiveAgent = {
+    epic_id: epic.id,
+    role: "tech_lead",
+    session_id: "",
+    started_at: new Date().toISOString(),
+  };
+  activeAgents.set(agentKey, agent);
+
   // Tech Lead MUST work in epic workspace, never default
   if (!(await isJjRepo(projectRoot))) {
     log(`Cannot spawn TL for ${epic.id}: not a jj repo`);
+    activeAgents.delete(agentKey);
     return;
   }
 
@@ -247,18 +256,12 @@ async function spawnTechLeadAgent(epic: Epic): Promise<void> {
       question: `Failed to create epic workspace: ${wsResult.error}`,
     };
     await writeEpic(projectRoot, epic);
+    activeAgents.delete(agentKey);
     return;
   }
   const workspacePath = wsResult.workspacePath;
   log(`TL using epic workspace at ${workspacePath}`);
 
-  const agent: ActiveAgent = {
-    epic_id: epic.id,
-    role: "tech_lead",
-    session_id: "",
-    started_at: new Date().toISOString(),
-  };
-  activeAgents.set(agentKey, agent);
   await updateDaemonState();
 
   const logger = new AgentLogger(projectRoot, epic.id, "tech_lead");
@@ -322,6 +325,15 @@ async function spawnCoderAgent(epic: Epic, task: Task): Promise<void> {
 
   log(`Spawning Coder agent for task ${task.id} in ${epic.id}`);
 
+  const agent: ActiveAgent = {
+    epic_id: epic.id,
+    role: "coder",
+    task_id: task.id,
+    session_id: "",
+    started_at: new Date().toISOString(),
+  };
+  activeAgents.set(agentKey, agent);
+
   // Check if this is a jj repo - if so, create a workspace for the coder
   const useJjWorkspace = await isJjRepo(projectRoot);
   let workspacePath = projectRoot;
@@ -331,23 +343,13 @@ async function spawnCoderAgent(epic: Epic, task: Task): Promise<void> {
     const wsResult = await createTaskWorkspace(projectRoot, epic.id, task.id);
     if (!wsResult.success) {
       log(`Failed to create workspace for task ${task.id}: ${wsResult.error}`);
+      activeAgents.delete(agentKey);
       return;
     }
     workspacePath = wsResult.workspacePath;
     log(`Workspace created at ${workspacePath}`);
   }
 
-  // Task status is updated by checkAndSpawnAgents before calling this function
-  // to avoid race conditions with concurrent writes
-
-  const agent: ActiveAgent = {
-    epic_id: epic.id,
-    role: "coder",
-    task_id: task.id,
-    session_id: "",
-    started_at: new Date().toISOString(),
-  };
-  activeAgents.set(agentKey, agent);
   await updateDaemonState();
 
   const logger = new AgentLogger(projectRoot, epic.id, "coder", task.id);
@@ -797,22 +799,24 @@ async function checkAndSpawnForEpic(epicId: string): Promise<void> {
       return;
     }
 
-    // Route to agent
+    // Route to agent (only if not already being handled)
+    const agentKey = to === "em" ? `em:${epicId}` : to === "pm" ? `pm:${epicId}` : to === "tech_lead" ? `tech_lead:${epicId}` : null;
+    if (agentKey && activeAgents.has(agentKey)) {
+      return;
+    }
+
     log(`[EM] Routing attention from ${epic.needs_attention.from} to ${to} for epic ${epicId}: ${epic.needs_attention.question}`);
 
     switch (to) {
       case "em":
-        // Spawn EM agent to handle the request
         spawnEmAgent(epic);
         break;
 
       case "pm":
-        // Spawn PM agent to handle the attention request
         spawnPmAgent(epic);
         break;
 
       case "tech_lead":
-        // Spawn Tech Lead agent to handle the attention request
         spawnTechLeadAgent(epic);
         break;
 
