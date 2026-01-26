@@ -20,7 +20,7 @@ export interface TaskStatusRequest {
 export interface AttentionRequest {
   type: "attention";
   epicId: string;
-  from: "pm" | "tech_lead" | "coder";
+  from: "pm" | "tech_lead" | "coder" | "em";
   to: "em" | "pm" | "tech_lead" | "user";
   question: string;
 }
