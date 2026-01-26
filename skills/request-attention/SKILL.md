@@ -11,17 +11,17 @@ Instead of escalating to the user, request help from other agents who might be a
 **PM Agents** can ask:
 - **EM**: For spec approval or high-level product strategy questions
   ```bash
-  inc attention request <epic-id> em "Review this spec and approve if ready"
+  inc attention request <epic-id> pm em "Review this spec and approve if ready"
   ```
 
 **Tech Lead Agents** can ask:
 - **PM**: For requirements clarification or product decisions
   ```bash
-  inc attention request <epic-id> pm "Should feature X handle edge case Y?"
+  inc attention request <epic-id> tech_lead pm "Should feature X handle edge case Y?"
   ```
 - **EM**: For high-level product strategy questions
   ```bash
-  inc attention request <epic-id> em "Is this architectural approach aligned with product direction?"
+  inc attention request <epic-id> tech_lead em "Is this architectural approach aligned with product direction?"
   ```
 
 **Coder Agents**:
@@ -56,7 +56,7 @@ Only escalate directly to the user when:
 
 Use:
 ```bash
-inc attention request <epic-id> user "Your question for the user"
+inc attention request <epic-id> <your-role> user "Your question for the user"
 ```
 
 This minimizes user interruptions while maintaining quality.

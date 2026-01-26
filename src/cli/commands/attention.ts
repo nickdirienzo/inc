@@ -8,14 +8,21 @@ attentionCommand
   .command("request")
   .description("Request attention from another agent or user")
   .argument("<epic>", "Epic ID or short ID")
+  .argument("<from>", "Who is asking: pm, tech_lead, or coder")
   .argument("<to>", "Who to ask: em, pm, tech_lead, or user")
   .argument("<question>", "Your question")
-  .action(async (epicArg: string, to: string, question: string) => {
+  .action(async (epicArg: string, from: string, to: string, question: string) => {
     const projectRoot = process.cwd();
+
+    const validSources = ["pm", "tech_lead", "coder"];
+    if (!validSources.includes(from)) {
+      console.error(`Invalid from: ${from}. Valid: ${validSources.join(", ")}`);
+      process.exit(1);
+    }
 
     const validTargets = ["em", "pm", "tech_lead", "user"];
     if (!validTargets.includes(to)) {
-      console.error(`Invalid target: ${to}. Valid: ${validTargets.join(", ")}`);
+      console.error(`Invalid to: ${to}. Valid: ${validTargets.join(", ")}`);
       process.exit(1);
     }
 
@@ -27,12 +34,10 @@ attentionCommand
 
     const { epicId } = resolved;
 
-    const from = process.env.INC_AGENT_ROLE as "pm" | "tech_lead" | "coder" || "pm";
-
     const response = await submitRequest(projectRoot, {
       type: "attention",
       epicId,
-      from,
+      from: from as "pm" | "tech_lead" | "coder",
       to: to as "em" | "pm" | "tech_lead" | "user",
       question,
     });

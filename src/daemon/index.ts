@@ -77,6 +77,9 @@ const STUCK_AGENT_THRESHOLD = 10 * 60 * 1000; // 10 minutes
 // Track active agents
 const activeAgents = new Map<string, ActiveAgent>();
 
+// Prevent concurrent checkAndSpawnAgents calls per epic
+const epicCheckLocks = new Set<string>();
+
 // Task write queue for serialization
 type TaskWriteOp = {
   epicId: string;
@@ -770,145 +773,157 @@ async function checkAndSpawnAgents(): Promise<void> {
   const epicIds = await listEpics(projectRoot);
 
   for (const epicId of epicIds) {
-    const epic = await readEpic(projectRoot, epicId);
-    if (!epic) continue;
-
-    // Handle attention routing
-    if (epic.needs_attention) {
-      const { to } = epic.needs_attention;
-
-      if (to === "user") {
-        // Skip this epic - user needs to respond (current behavior)
-        continue;
-      }
-
-      // Route to agent
-      log(`[EM] Routing attention from ${epic.needs_attention.from} to ${to} for epic ${epicId}: ${epic.needs_attention.question}`);
-
-      switch (to) {
-        case "em":
-          // Spawn EM agent to handle the request
-          spawnEmAgent(epic);
-          break;
-
-        case "pm":
-          // Spawn PM agent to handle the attention request
-          spawnPmAgent(epic);
-          break;
-
-        case "tech_lead":
-          // Spawn Tech Lead agent to handle the attention request
-          spawnTechLeadAgent(epic);
-          break;
-
-        default:
-          log(`Unknown attention target: ${to}, escalating to user`);
-          epic.needs_attention = {
-            from: "em",
-            to: "user",
-            question: `Unknown attention target ${to}: ${epic.needs_attention.question}`,
-            escalation_count: (epic.needs_attention.escalation_count || 0) + 1,
-          };
-          await writeEpic(projectRoot, epic);
-      }
-
+    if (epicCheckLocks.has(epicId)) {
       continue;
     }
+    epicCheckLocks.add(epicId);
 
-    // Skip if abandoned
-    if (epic.status === "abandoned") {
-      continue;
+    checkAndSpawnForEpic(epicId).finally(() => {
+      epicCheckLocks.delete(epicId);
+    });
+  }
+}
+
+async function checkAndSpawnForEpic(epicId: string): Promise<void> {
+  const epic = await readEpic(projectRoot, epicId);
+  if (!epic) return;
+
+  // Handle attention routing
+  if (epic.needs_attention) {
+    const { to } = epic.needs_attention;
+
+    if (to === "user") {
+      // Skip this epic - user needs to respond (current behavior)
+      return;
     }
 
-    switch (epic.status) {
-      case "new":
-      case "spec_in_progress":
-        // PM should be working on spec
-        // Update status if new
-        if (epic.status === "new") {
-          epic.status = "spec_in_progress";
-          await writeEpic(projectRoot, epic);
-        }
+    // Route to agent
+    log(`[EM] Routing attention from ${epic.needs_attention.from} to ${to} for epic ${epicId}: ${epic.needs_attention.question}`);
+
+    switch (to) {
+      case "em":
+        // Spawn EM agent to handle the request
+        spawnEmAgent(epic);
+        break;
+
+      case "pm":
+        // Spawn PM agent to handle the attention request
         spawnPmAgent(epic);
         break;
 
-      case "plan_in_progress":
-        // Tech Lead should be creating architecture/tasks
+      case "tech_lead":
+        // Spawn Tech Lead agent to handle the attention request
         spawnTechLeadAgent(epic);
         break;
 
-      case "coding":
-        // Create epic workspace if it doesn't exist
-        const useJj = await isJjRepo(projectRoot);
-        if (useJj) {
-          const wsResult = await createEpicWorkspace(projectRoot, epicId);
-          if (!wsResult.success) {
-            log(`Failed to create epic workspace for ${epicId}: ${wsResult.error}`);
-            epic.needs_attention = {
-              from: "tech_lead",
-              to: "user",
-              question: `Failed to create epic workspace: ${wsResult.error}`,
-            };
-            await writeEpic(projectRoot, epic);
-            continue;
-          }
+      default:
+        log(`Unknown attention target: ${to}, escalating to user`);
+        epic.needs_attention = {
+          from: "em",
+          to: "user",
+          question: `Unknown attention target ${to}: ${epic.needs_attention.question}`,
+          escalation_count: (epic.needs_attention.escalation_count || 0) + 1,
+        };
+        await writeEpic(projectRoot, epic);
+    }
 
-          // Only update epic.json if workspace path changed (avoid infinite loop)
-          if (epic.workspace_path !== wsResult.workspacePath) {
-            log(`Epic workspace ready at ${wsResult.workspacePath}`);
-            epic.workspace_path = wsResult.workspacePath;
-            await writeEpic(projectRoot, epic);
-          }
+    return;
+  }
+
+  // Skip if abandoned
+  if (epic.status === "abandoned") {
+    return;
+  }
+
+  switch (epic.status) {
+    case "new":
+    case "spec_in_progress":
+      // PM should be working on spec
+      // Update status if new
+      if (epic.status === "new") {
+        epic.status = "spec_in_progress";
+        await writeEpic(projectRoot, epic);
+      }
+      spawnPmAgent(epic);
+      break;
+
+    case "plan_in_progress":
+      // Tech Lead should be creating architecture/tasks
+      spawnTechLeadAgent(epic);
+      break;
+
+    case "coding": {
+      // Create epic workspace if it doesn't exist
+      const useJj = await isJjRepo(projectRoot);
+      if (useJj) {
+        const wsResult = await createEpicWorkspace(projectRoot, epicId);
+        if (!wsResult.success) {
+          log(`Failed to create epic workspace for ${epicId}: ${wsResult.error}`);
+          epic.needs_attention = {
+            from: "tech_lead",
+            to: "user",
+            question: `Failed to create epic workspace: ${wsResult.error}`,
+          };
+          await writeEpic(projectRoot, epic);
+          return;
         }
 
-        // Find tasks that need coders
-        const tasksFile = await readTasks(projectRoot, epicId);
-        if (tasksFile) {
-          const tasksToSpawn: { epic: Epic; task: typeof tasksFile.tasks[0] }[] = [];
+        // Only update epic.json if workspace path changed (avoid infinite loop)
+        if (epic.workspace_path !== wsResult.workspacePath) {
+          log(`Epic workspace ready at ${wsResult.workspacePath}`);
+          epic.workspace_path = wsResult.workspacePath;
+          await writeEpic(projectRoot, epic);
+        }
+      }
 
-          for (const task of tasksFile.tasks) {
-            if (task.status === "not_started") {
-              // Check if blocked by other tasks
-              const blockers = task.blocked_by.filter((blockerId) => {
-                const blocker = tasksFile.tasks.find((t) => t.id === blockerId);
-                return blocker && blocker.status !== "done";
-              });
+      // Find tasks that need coders
+      const tasksFile = await readTasks(projectRoot, epicId);
+      if (tasksFile) {
+        const tasksToSpawn: { epic: Epic; task: typeof tasksFile.tasks[0] }[] = [];
 
-              if (blockers.length === 0) {
-                tasksToSpawn.push({ epic, task });
-              }
+        for (const task of tasksFile.tasks) {
+          if (task.status === "not_started") {
+            // Check if blocked by other tasks
+            const blockers = task.blocked_by.filter((blockerId) => {
+              const blocker = tasksFile.tasks.find((t) => t.id === blockerId);
+              return blocker && blocker.status !== "done";
+            });
+
+            if (blockers.length === 0) {
+              tasksToSpawn.push({ epic, task });
             }
           }
-
-          // Mark tasks as in_progress through queue, then spawn agents
-          for (const { epic, task } of tasksToSpawn) {
-            const assignee = `coder-${Date.now()}`;
-            await queueTaskUpdate(epicId, task.id, {
-              status: "in_progress",
-              assignee,
-            });
-            spawnCoderAgent(epic, task);
-          }
-
-          // Check if all tasks are done
-          const allDone = tasksFile.tasks.every((t) => t.status === "done");
-          if (allDone && tasksFile.tasks.length > 0) {
-            // Move to review
-            epic.status = "review";
-            await writeEpic(projectRoot, epic);
-            log(`All tasks complete for ${epicId}, moving to review`);
-          }
         }
-        break;
 
-      case "review":
-        // Check if PR already exists
-        if (!epic.pr_number) {
-          // Spawn Tech Lead to create the PR
-          spawnTechLeadAgent(epic);
+        // Mark tasks as in_progress through queue, then spawn agents
+        for (const { epic, task } of tasksToSpawn) {
+          const assignee = `coder-${Date.now()}`;
+          await queueTaskUpdate(epicId, task.id, {
+            status: "in_progress",
+            assignee,
+          });
+          spawnCoderAgent(epic, task);
         }
-        break;
+
+        // Check if all tasks are done
+        const allDone = tasksFile.tasks.every((t) => t.status === "done");
+        if (allDone && tasksFile.tasks.length > 0) {
+          // Move to review
+          epic.status = "review";
+          await writeEpic(projectRoot, epic);
+          log(`All tasks complete for ${epicId}, moving to review`);
+        }
+      }
+      break;
     }
+
+    case "review":
+      // Check if PR already exists
+      if (!epic.pr_number) {
+        // Spawn Tech Lead to create the PR
+        spawnTechLeadAgent(epic);
+      }
+      break;
   }
 }
 
