@@ -13,6 +13,7 @@ const INC_HOME = join(homedir(), ".inc");
 const PROJECTS_DIR = "projects";
 const EPICS_DIR = "epics";
 const WORKSPACES_DIR = "workspaces";
+const DEFERRED_DIR = "deferred";
 
 /**
  * Generate a stable hash for a project path.
@@ -118,4 +119,18 @@ export function getTaskWorkspacePath(projectRoot: string, epicId: string, taskId
  */
 export function getProjectMetadataPath(projectRoot: string): string {
   return join(getProjectIncDir(projectRoot), "project.json");
+}
+
+/**
+ * Get the deferred directory: ~/.inc/projects/<hash>/deferred/
+ */
+export function getDeferredDir(projectRoot: string): string {
+  return join(getProjectIncDir(projectRoot), DEFERRED_DIR);
+}
+
+/**
+ * Get a specific deferred item path: ~/.inc/projects/<hash>/deferred/<itemId>.json
+ */
+export function getDeferredItemPath(projectRoot: string, itemId: string): string {
+  return join(getDeferredDir(projectRoot), `${itemId}.json`);
 }
