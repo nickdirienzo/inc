@@ -269,11 +269,12 @@ async function spawnTechLeadAgent(epic: Epic): Promise<void> {
       options: {
         cwd: workspacePath,
         systemPrompt,
-        tools: ["Read", "Glob", "Grep", "Edit", "Write", "Bash"],
-        allowedTools: ["Read", "Glob", "Grep", "Edit", "Write", "Bash"],
+        tools: ["Read", "Glob", "Grep", "Edit", "Write", "Bash", "Skill"],
+        allowedTools: ["Read", "Glob", "Grep", "Edit", "Write", "Bash", "Skill"],
         permissionMode: "acceptEdits",
         additionalDirectories: [epicDir],
         maxTurns: 50,
+        plugins: [{ type: "local", path: incPluginDir }],
         hooks: {
           PreToolUse: [{
             matcher: 'Edit|Write',
