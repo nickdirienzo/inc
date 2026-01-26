@@ -506,6 +506,24 @@ async function processQueueRequests(): Promise<void> {
           await completeRequest(projectRoot, id, { success: true });
           break;
         }
+        case "update-epic": {
+          const epic = await readEpic(projectRoot, request.epicId);
+          if (!epic) {
+            await completeRequest(projectRoot, id, { success: false, error: `Epic ${request.epicId} not found` });
+            break;
+          }
+
+          log(`[Queue] Updating epic ${request.epicId}: ${JSON.stringify(request.fields)}`);
+          if (request.fields.pr_number !== undefined) {
+            epic.pr_number = request.fields.pr_number;
+          }
+          if (request.fields.status !== undefined) {
+            epic.status = request.fields.status;
+          }
+          await writeEpic(projectRoot, epic);
+          await completeRequest(projectRoot, id, { success: true });
+          break;
+        }
         default:
           await completeRequest(projectRoot, id, { success: false, error: `Unknown request type: ${(request as QueueRequest).type}` });
       }
