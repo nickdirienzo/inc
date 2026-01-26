@@ -23,7 +23,7 @@ export type TaskStatus =
   | "failed";
 
 export interface NeedsAttention {
-  from: "pm" | "tech_lead" | "coder";
+  from: "pm" | "tech_lead" | "coder" | "em";
   to: "em" | "pm" | "tech_lead" | "user";
   question: string;
   escalation_count?: number;

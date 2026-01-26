@@ -31,7 +31,7 @@ export const approveCommand = new Command("approve")
           message = "Spec approved. Tech Lead will now create the architecture plan.";
           // Clear needs_attention in case PM set it expecting EM auto-approval
           // This provides backward compatibility during transition to agent-driven approval
-          epic.needs_attention = undefined;
+          delete epic.needs_attention;
           break;
 
         case "plan":
@@ -64,7 +64,7 @@ export const approveCommand = new Command("approve")
       }
 
       epic.status = newStatus;
-      epic.needs_attention = undefined;
+      delete epic.needs_attention;
       await writeEpic(projectRoot, epic);
 
       console.log(message);

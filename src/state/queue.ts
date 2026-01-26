@@ -25,7 +25,18 @@ export interface AttentionRequest {
   question: string;
 }
 
-export type QueueRequest = TaskStatusRequest | AttentionRequest;
+export interface ClearAttentionRequest {
+  type: "clear-attention";
+  epicId: string;
+}
+
+export interface SetStatusRequest {
+  type: "set-status";
+  epicId: string;
+  status: "new" | "spec_in_progress" | "spec_complete" | "plan_in_progress" | "plan_complete" | "coding" | "review" | "done" | "abandoned";
+}
+
+export type QueueRequest = TaskStatusRequest | AttentionRequest | ClearAttentionRequest | SetStatusRequest;
 
 export interface QueueResponse {
   success: boolean;

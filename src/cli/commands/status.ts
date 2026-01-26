@@ -1,8 +1,53 @@
 import { Command } from "commander";
-import { listEpics, readEpic, readTasks, readDaemonPid, resolveEpicId } from "../../state/index.js";
+import { listEpics, readEpic, readTasks, readDaemonPid, resolveEpicId, submitRequest } from "../../state/index.js";
 import { listRegisteredEpics, lookupEpic, searchEpics } from "../../registry/index.js";
+import type { EpicStatus } from "../../state/index.js";
+
+const VALID_STATUSES: EpicStatus[] = [
+  "new", "spec_in_progress", "spec_complete", "plan_in_progress",
+  "plan_complete", "coding", "review", "done", "abandoned"
+];
 
 export const statusCommand = new Command("status")
+  .description("Show or set status of epics");
+
+statusCommand
+  .command("set")
+  .description("Set the status of an epic")
+  .argument("<epic>", "Epic ID or short ID")
+  .argument("<status>", `New status: ${VALID_STATUSES.join(", ")}`)
+  .action(async (epicArg: string, status: string) => {
+    const projectRoot = process.cwd();
+
+    if (!VALID_STATUSES.includes(status as EpicStatus)) {
+      console.error(`Invalid status: ${status}. Valid: ${VALID_STATUSES.join(", ")}`);
+      process.exit(1);
+    }
+
+    const resolved = await resolveEpicId(projectRoot, epicArg);
+    if (!resolved) {
+      console.error(`Epic not found: ${epicArg}`);
+      process.exit(1);
+    }
+
+    const { epicId } = resolved;
+
+    const response = await submitRequest(projectRoot, {
+      type: "set-status",
+      epicId,
+      status: status as EpicStatus,
+    });
+
+    if (response.success) {
+      console.log(`Epic ${epicId} status set to: ${status}`);
+    } else {
+      console.error(`Failed to set status: ${response.error}`);
+      process.exit(1);
+    }
+  });
+
+statusCommand
+  .command("show", { isDefault: true })
   .description("Show status of epics")
   .argument("[epic-id]", "Specific epic to show (optional)")
   .option("-g, --global", "Show all epics across all projects")
@@ -108,13 +153,12 @@ export const statusCommand = new Command("status")
 
         if (epic.needs_attention) {
           const { from, to, question, escalation_count } = epic.needs_attention;
-          const toTarget = to || "user"; // backward compatibility
 
-          if (toTarget === "user") {
+          if (to === "user") {
             console.log(`  ⚠️  Needs attention from ${from}: ${question}`);
           } else {
             const escalationInfo = escalation_count ? ` (escalation #${escalation_count})` : "";
-            console.log(`  ⏳  Waiting for ${toTarget} to respond to ${from}${escalationInfo}: ${question}`);
+            console.log(`  ⏳  Waiting for ${to} to respond to ${from}${escalationInfo}: ${question}`);
           }
         }
 
