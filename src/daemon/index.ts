@@ -6,6 +6,12 @@
 
 import { watch } from "chokidar";
 import { query, type HookCallback } from "@anthropic-ai/claude-agent-sdk";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const incPluginDir = join(__dirname, "../..");
 import {
   getEpicsDir,
   getEpicDir,
@@ -173,11 +179,12 @@ async function spawnPmAgent(epic: Epic): Promise<void> {
       options: {
         cwd: projectRoot,
         systemPrompt,
-        tools: ["Read", "Glob", "Grep", "Edit", "Write"],
-        allowedTools: ["Read", "Glob", "Grep", "Edit", "Write"],
+        tools: ["Read", "Glob", "Grep", "Edit", "Write", "Skill"],
+        allowedTools: ["Read", "Glob", "Grep", "Edit", "Write", "Skill"],
         permissionMode: "acceptEdits",
         additionalDirectories: [epicDir],
         maxTurns: 50,
+        plugins: [{ type: "local", path: incPluginDir }],
         hooks: {
           PreToolUse: [{
             matcher: 'Edit|Write',

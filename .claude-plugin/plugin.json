@@ -1,5 +1,5 @@
 {
-  "name": "strike",
+  "name": "inc",
   "version": "1.0.0",
-  "description": "Strike agent orchestration CLI tools"
+  "description": "Inc agent orchestration CLI tools"
 }
