@@ -57,6 +57,18 @@ export interface TasksFile {
   tasks: Task[];
 }
 
+export interface DeferredItem {
+  id: string;
+  title: string;
+  description: string;
+  rationale: string;
+  source_epic_id: string;
+  created_at: string;
+  created_by: "user" | "pm" | "tech_lead" | "em";
+  promoted_to_epic_id?: string;
+  promoted_at?: string;
+}
+
 export interface Decision {
   timestamp: string;
   role: "pm" | "tech_lead" | "coder";

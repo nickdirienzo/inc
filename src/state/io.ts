@@ -270,6 +270,7 @@ export async function initIncDir(projectRoot: string): Promise<void> {
   await ensureDir(paths.getProjectIncDir(projectRoot));
   await ensureDir(paths.getEpicsDir(projectRoot));
   await ensureDir(paths.getWorkspacesDir(projectRoot));
+  await ensureDir(paths.getDeferredDir(projectRoot));
 
   // Write project metadata if it doesn't exist
   const existingMetadata = await readProjectMetadata(projectRoot);
