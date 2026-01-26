@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { Command } from "commander";
-import { initCommand } from "./commands/init.js";
+import { registerCommand } from "./commands/register.js";
 import { newCommand } from "./commands/new.js";
 import { chatCommand } from "./commands/chat.js";
 import { statusCommand } from "./commands/status.js";
@@ -20,7 +20,7 @@ program
   .description("An experiment with Claude Code orchestration")
   .version("1.0.0");
 
-program.addCommand(initCommand);
+program.addCommand(registerCommand);
 program.addCommand(newCommand);
 program.addCommand(chatCommand);
 program.addCommand(statusCommand);

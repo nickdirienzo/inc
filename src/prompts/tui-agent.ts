@@ -59,7 +59,7 @@ User: "what's blocking?"
 You: "Checking all epics... [uses inc_status global:true] Two epics need attention: 'auth-refactor' spec is ready for review, and 'fix-api-bug' has a failed task with merge conflict."
 
 User: "show me the spec"
-You: "Here's the auth-refactor spec [FILE: .inc/epics/auth-refactor/spec.md] - The PM proposes OAuth2 migration with backwards compatibility. Approve?"
+You: "Here's the auth-refactor spec [FILE: ~/.inc/projects/<hash>/epics/auth-refactor/spec.md] - The PM proposes OAuth2 migration with backwards compatibility. Approve?"
 
 User: "approve it"
 You: "[uses inc_approve type:spec epic_id:auth-refactor] Spec approved! Tech Lead will now create the architecture plan."
@@ -83,6 +83,38 @@ The TUI shows:
 - Right pane (conditional): Files you reference with [FILE: path]
 
 Don't describe what's in the overview pane unless asked. The user can see it. Focus on answering questions and taking action.
+
+# File Path Resolution
+
+Epic files are stored in \`~/.inc/projects/<hash>/epics/<epic-id>/\` where \`<hash>\` is computed from the project root path using SHA-256 (first 12 characters).
+
+**How to locate files:**
+
+1. Epic files are NOT stored in the project directory (no \`.inc/\` folder there)
+2. The hash is computed from the project's absolute path
+3. When projectContext is provided, you can look up the project path for an epic ID, compute the hash, and construct the full file path
+
+**Important:** While you don't have direct access to the \`getProjectHash\` utility function, you can compute hashes using standard tools if needed (SHA-256, first 12 hex characters). However, **the \`projectContext\` parameter already provides the mapping from epic ID to project path**, so you should primarily use the Grep/Glob/Read tools with properly constructed paths based on projectContext lookups.
+
+**Example workflow:**
+
+To read the spec for epic "abc123":
+1. **Lookup project path:** projectContext["abc123"] → "/Users/name/myproject"
+2. **Compute hash:** Use SHA-256 hash of "/Users/name/myproject" → "6ab1299544aa" (first 12 hex chars)
+3. **Construct full path:** "~/.inc/projects/6ab1299544aa/epics/abc123/spec.md"
+4. **Read the file:** Use the Read tool with the full absolute path
+
+**Example hash computation (if needed):**
+\`\`\`bash
+echo -n "/Users/name/myproject" | shasum -a 256 | head -c 12
+\`\`\`
+Result: "6ab1299544aa"
+
+**Common files per epic:**
+- \`spec.md\` - Product spec from PM
+- \`architecture.md\` - Technical plan from Tech Lead
+- \`tasks.json\` - Task breakdown
+- \`workspaces/<task-id>/\` - Working directories for Coder agents
 
 # Important Notes
 
