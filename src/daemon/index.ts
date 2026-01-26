@@ -34,9 +34,12 @@ import {
   checkPrStatus,
   updateDefaultWorkspace,
   cleanupEpicWorkspaces,
+  rebaseEpicWorkspace,
+  listWorkspaces,
 } from "../jj/index.js";
 import { createConflictResolutionEpic } from "../state/index.js";
 import { AgentLogger } from "../agents/logging.js";
+import { submitRequest } from "../state/queue.js";
 
 const projectRoot = process.argv[2] || process.cwd();
 
@@ -554,6 +557,9 @@ async function runEngineeringManager(): Promise<void> {
         if (updateResult.success) {
           log(`[EM] Default workspace updated successfully after PR #${epic.pr_number}`);
 
+          // Rebase all active epic workspaces onto the updated main
+          await rebaseEpicWorkspaces();
+
           // Clean up epic workspaces
           await cleanupEpicWorkspaces(projectRoot, epicId);
 
@@ -591,6 +597,57 @@ async function runEngineeringManager(): Promise<void> {
 
   // Now spawn any needed agents
   await checkAndSpawnAgents();
+}
+
+async function rebaseEpicWorkspaces(): Promise<void> {
+  // Get all epic IDs
+  const epicIds = await listEpics(projectRoot);
+
+  // Get list of existing workspaces
+  const workspaces = await listWorkspaces(projectRoot);
+  const workspaceNames = new Set(workspaces.map(ws => ws.name));
+
+  for (const epicId of epicIds) {
+    // Read the epic
+    const epic = await readEpic(projectRoot, epicId);
+
+    // Skip if epic is null
+    if (!epic) {
+      continue;
+    }
+
+    // Check if status is eligible for rebasing
+    if (epic.status !== "plan_in_progress" && epic.status !== "coding" && epic.status !== "review") {
+      continue;
+    }
+
+    // Check if workspace exists
+    const workspaceName = `inc-${epicId}`;
+    if (!workspaceNames.has(workspaceName)) {
+      continue;
+    }
+
+    // Log the rebase attempt
+    log(`[EM] Rebasing epic workspace for ${epicId}`);
+
+    // Attempt to rebase the epic workspace
+    const result = await rebaseEpicWorkspace(projectRoot, epicId);
+
+    if (result.success) {
+      log(`[EM] Successfully rebased epic ${epicId} onto main`);
+    } else {
+      log(`[EM] Failed to rebase epic ${epicId}: ${result.error}`);
+
+      // Use attention mechanism to request help from Tech Lead
+      await submitRequest(projectRoot, {
+        type: "attention",
+        epicId,
+        from: "em",
+        to: "tech_lead",
+        question: `Epic workspace rebase onto main failed: ${result.error}. Please resolve the conflicts.`,
+      });
+    }
+  }
 }
 
 async function checkAndSpawnAgents(): Promise<void> {
