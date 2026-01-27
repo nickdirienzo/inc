@@ -8,42 +8,114 @@
 import SwiftUI
 
 struct ContentView: View {
+    // MARK: - State Objects
+
+    @StateObject private var epicListViewModel = EpicListViewModel()
+    @StateObject private var chatViewModel = ChatViewModel()
+    @StateObject private var contextViewModel = ContextViewModel()
+    // Note: DocumentViewModel and DocumentView not yet implemented (tasks 8-10)
+    // TODO: Uncomment when DocumentViewModel is available
+    // @StateObject private var documentViewModel = DocumentViewModel()
+    @StateObject private var rightPaneViewModel = RightPaneViewModel()
+
     var body: some View {
         HStack(spacing: 0) {
-            // Placeholder for epic list (left sidebar)
-            VStack {
-                Text("Epic List")
-                    .font(.headline)
-                    .padding()
-                Spacer()
-            }
-            .frame(minWidth: 250, idealWidth: 300, maxWidth: 400)
-            .background(Color(NSColor.controlBackgroundColor))
+            // Left sidebar: Epic list
+            EpicListView(viewModel: epicListViewModel)
 
             Divider()
 
-            // Placeholder for chat view (center pane)
-            VStack {
-                Text("Chat Interface")
-                    .font(.headline)
-                    .padding()
-                Spacer()
+            // Center pane: Document action buttons + Chat view
+            VStack(spacing: 0) {
+                // Document action buttons (hidden until DocumentViewModel is implemented)
+                // TODO: Uncomment when DocumentViewModel is available
+                /*
+                HStack(spacing: 12) {
+                    Button("View Spec") {
+                        if let selectedEpic = epicListViewModel.selectedEpic {
+                            documentViewModel.loadSpec(
+                                projectPath: selectedEpic.projectPath,
+                                epicId: selectedEpic.epic.id
+                            )
+                            rightPaneViewModel.showDocument()
+                        }
+                    }
+                    .disabled(epicListViewModel.selectedEpicId == nil)
+
+                    Button("View Architecture") {
+                        if let selectedEpic = epicListViewModel.selectedEpic {
+                            documentViewModel.loadArchitecture(
+                                projectPath: selectedEpic.projectPath,
+                                epicId: selectedEpic.epic.id
+                            )
+                            rightPaneViewModel.showDocument()
+                        }
+                    }
+                    .disabled(epicListViewModel.selectedEpicId == nil)
+
+                    Spacer()
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+
+                Divider()
+                */
+
+                // Chat interface
+                ChatView(viewModel: chatViewModel)
             }
             .frame(minWidth: 400)
 
             Divider()
 
-            // Placeholder for context view (right pane)
-            VStack {
-                Text("Context Pane")
-                    .font(.headline)
-                    .padding()
-                Spacer()
+            // Right pane: Context or Document viewer
+            Group {
+                switch rightPaneViewModel.activeContent {
+                case .context:
+                    ContextView(viewModel: contextViewModel)
+                case .document:
+                    // TODO: Uncomment when DocumentView is available
+                    // DocumentView(viewModel: documentViewModel)
+
+                    // Placeholder until DocumentView is implemented
+                    VStack {
+                        Text("Document Viewer")
+                            .font(.headline)
+                            .padding()
+                        Text("DocumentView not yet implemented")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Spacer()
+                    }
+                case .none:
+                    // Empty state
+                    EmptyView()
+                }
             }
             .frame(minWidth: 300, idealWidth: 400, maxWidth: 600)
             .background(Color(NSColor.controlBackgroundColor))
+            .onChange(of: contextViewModel.currentFile) { file in
+                // When context file is opened, show the context pane
+                // When context file is closed, hide the right pane
+                if file != nil {
+                    rightPaneViewModel.showContext()
+                } else if rightPaneViewModel.activeContent == .context {
+                    rightPaneViewModel.hide()
+                }
+            }
         }
         .frame(minWidth: 1000, minHeight: 600)
+        .onChange(of: epicListViewModel.selectedEpicId) { _ in
+            // Update chat view model with selected epic's project root
+            if let selectedEpic = epicListViewModel.selectedEpic {
+                // Note: ChatViewModel doesn't have projectRoot property yet (task 11 incomplete)
+                // TODO: Uncomment when task 11 is complete
+                // chatViewModel.projectRoot = URL(fileURLWithPath: selectedEpic.projectPath)
+            } else {
+                // TODO: Uncomment when task 11 is complete
+                // chatViewModel.projectRoot = nil
+            }
+        }
     }
 }
 
