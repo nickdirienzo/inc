@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { createDeferredItem, readDeferredItem, listDeferredItems, promoteDeferredItem, resolveEpicId, createEpic, initIncDir } from "../../state/index.js";
+import { createDeferredItem, readDeferredItem, listDeferredItems, promoteDeferredItem, resolveEpicId, createEpic, initIncDir, requireProjectRoot } from "../../state/index.js";
 import { registerEpic } from "../../registry/index.js";
 
 export const deferredCommand = new Command("deferred")
@@ -18,7 +18,7 @@ deferredCommand
     rationale: string;
     sourceEpic: string;
   }) => {
-    const projectRoot = process.cwd();
+    const projectRoot = requireProjectRoot();
 
     try {
       // Resolve the source epic ID (supports short IDs)
@@ -53,7 +53,7 @@ deferredCommand
   .description("Show details of a deferred work item")
   .argument("<id>", "Deferred item ID")
   .action(async (itemId: string) => {
-    const projectRoot = process.cwd();
+    const projectRoot = requireProjectRoot();
 
     try {
       const item = await readDeferredItem(projectRoot, itemId);
@@ -91,7 +91,7 @@ deferredCommand
   .description("List all deferred work items")
   .option("--all", "Include promoted items")
   .action(async (options: { all?: boolean }) => {
-    const projectRoot = process.cwd();
+    const projectRoot = requireProjectRoot();
 
     try {
       const items = await listDeferredItems(projectRoot, { includePromoted: options.all });
@@ -138,7 +138,7 @@ deferredCommand
   .description("Promote a deferred item to a new epic")
   .argument("<id>", "Deferred item ID")
   .action(async (itemId: string) => {
-    const projectRoot = process.cwd();
+    const projectRoot = requireProjectRoot();
 
     try {
       // Read the deferred item
