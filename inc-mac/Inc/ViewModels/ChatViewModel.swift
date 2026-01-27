@@ -94,7 +94,7 @@ class ChatViewModel: ObservableObject {
 
         // TODO: Wire to TUIAgentService in task 13
         // For now, just add a placeholder agent response
-        try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+        try? await _Concurrency.Task.sleep(nanoseconds: 1_000_000_000) // 1 second
 
         addAgentMessage("This is a placeholder response. TUIAgentService will be wired in task 13.")
 

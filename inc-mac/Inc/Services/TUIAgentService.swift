@@ -43,7 +43,7 @@ class TUIAgentService {
 
         // Stream responses by polling log files
         return AsyncStream { continuation in
-            Task {
+            _Concurrency.Task {
                 do {
                     try await pollForResponse(
                         requestId: requestId,
@@ -131,7 +131,7 @@ class TUIAgentService {
             }
 
             // Sleep before next poll
-            try await Task.sleep(nanoseconds: UInt64(Self.pollInterval * 1_000_000_000))
+            try await _Concurrency.Task.sleep(nanoseconds: UInt64(Self.pollInterval * 1_000_000_000))
         }
     }
 

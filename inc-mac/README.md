@@ -4,9 +4,9 @@ Native macOS application for managing Inc epics, providing a snappy, low-resourc
 
 ## Requirements
 
-- macOS 11.0 (Big Sur) or later
-- Xcode 13.0 or later
-- Swift 5.0 or later
+- macOS 13.0 (Ventura) or later
+- Xcode 14.0 or later (with Swift 5.7+)
+- Command Line Tools (for swiftc)
 
 ## Project Structure
 
@@ -32,30 +32,29 @@ inc-mac/
 2. Select the "Inc" scheme
 3. Build and run: `⌘R` (Cmd+R)
 
-### Option 2: Command Line
+### Option 2: Command Line (Recommended)
 
 ```bash
 cd inc-mac
 
-# Build debug version
-xcodebuild -project Inc.xcodeproj -scheme Inc -configuration Debug build
-
-# Build release version
-xcodebuild -project Inc.xcodeproj -scheme Inc -configuration Release build
+# Simple build (uses swiftc directly)
+./build.sh
 
 # Run the app
-open build/Release/Inc.app
+open Inc.app
 ```
+
+**Note**: The Xcode project may require code signing setup. The `build.sh` script provides a simpler alternative that compiles all Swift files directly without Xcode project configuration.
 
 ## Configuration
 
 ### Build Settings
 
-- **Minimum Deployment Target**: macOS 11.0
-- **Code Signing**: Developer ID Application (for distribution) or Apple Development (for local development)
-- **Sandboxing**: Disabled in v1 to allow filesystem access to `~/.inc/`
-- **Hardened Runtime**: Enabled for security
-- **Swift Version**: 5.0
+- **Minimum Deployment Target**: macOS 13.0 (Ventura)
+- **Code Signing**: Not required when using `build.sh`
+- **Sandboxing**: Disabled to allow filesystem access to `~/.inc/`
+- **Hardened Runtime**: Disabled for local development
+- **Swift Version**: 5.7+
 
 ### Entitlements
 

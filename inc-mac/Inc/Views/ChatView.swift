@@ -129,7 +129,7 @@ struct ChatView: View {
     private func sendMessage() {
         guard canSend else { return }
 
-        Task {
+        _Concurrency.Task {
             await viewModel.sendMessage(viewModel.inputText)
         }
 
