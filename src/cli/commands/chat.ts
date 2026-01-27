@@ -1,7 +1,7 @@
 import { Command } from "commander";
 import { createInterface } from "node:readline";
 import { query } from "@anthropic-ai/claude-agent-sdk";
-import { readEpic, writeEpic, getEpicDir, getChatsDir, resolveEpicId } from "../../state/index.js";
+import { readEpic, writeEpic, getEpicDir, getChatsDir, resolveEpicId, findProjectRoot } from "../../state/index.js";
 import { getPmPrompt, getTechLeadPrompt, getCoderPrompt } from "../../prompts/index.js";
 import { readTasks } from "../../state/index.js";
 import { lookupEpic, searchEpics, listRegisteredEpics } from "../../registry/index.js";
@@ -230,7 +230,7 @@ export const chatCommand = new Command("chat")
   .option("-r, --role <role>", "Agent role: pm, tech-lead, coder", "pm")
   .option("-t, --task <id>", "Task ID (required for coder role)")
   .action(async (epicId: string, options: { role: string; task?: string }) => {
-    let projectRoot = process.cwd();
+    let projectRoot = findProjectRoot() ?? process.cwd();
 
     try {
       // First try to resolve epic ID (supports short IDs) in current directory

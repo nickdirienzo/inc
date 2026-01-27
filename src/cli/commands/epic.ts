@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { resolveEpicId, submitRequest } from "../../state/index.js";
+import { resolveEpicId, submitRequest, requireProjectRoot } from "../../state/index.js";
 
 export const epicCommand = new Command("epic")
   .description("Epic management commands");
@@ -10,7 +10,7 @@ epicCommand
   .argument("<epic>", "Epic ID or short ID")
   .option("--pr-number <number>", "Set PR number", parseInt)
   .action(async (epicArg: string, options: { prNumber?: number }) => {
-    const projectRoot = process.cwd();
+    const projectRoot = requireProjectRoot();
 
     const resolved = await resolveEpicId(projectRoot, epicArg);
     if (!resolved) {

@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { listEpics, readEpic, readTasks, readDaemonPid, resolveEpicId, submitRequest } from "../../state/index.js";
+import { listEpics, readEpic, readTasks, readDaemonPid, resolveEpicId, submitRequest, requireProjectRoot } from "../../state/index.js";
 import { listRegisteredEpics, lookupEpic, searchEpics } from "../../registry/index.js";
 import type { EpicStatus } from "../../state/index.js";
 
@@ -17,7 +17,7 @@ statusCommand
   .argument("<epic>", "Epic ID or short ID")
   .argument("<status>", `New status: ${VALID_STATUSES.join(", ")}`)
   .action(async (epicArg: string, status: string) => {
-    const projectRoot = process.cwd();
+    const projectRoot = requireProjectRoot();
 
     if (!VALID_STATUSES.includes(status as EpicStatus)) {
       console.error(`Invalid status: ${status}. Valid: ${VALID_STATUSES.join(", ")}`);
@@ -53,7 +53,7 @@ statusCommand
   .option("-g, --global", "Show all epics across all projects")
   .option("--include-abandoned", "Include abandoned epics in output")
   .action(async (epicId: string | undefined, options: { global?: boolean; includeAbandoned?: boolean }) => {
-    let projectRoot = process.cwd();
+    let projectRoot = requireProjectRoot();
 
     try {
       // If --global flag, show all registered epics

@@ -7,6 +7,7 @@ import {
   writeDaemonPid,
   removeDaemonPid,
   getDaemonLogPath,
+  requireProjectRoot,
 } from "../../state/index.js";
 import { existsSync, openSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
@@ -21,7 +22,7 @@ daemonCommand
   .command("start")
   .description("Start the daemon")
   .action(async () => {
-    const projectRoot = process.cwd();
+    const projectRoot = requireProjectRoot();
 
     // Check if already running
     const existingPid = await readDaemonPid(projectRoot);
@@ -71,7 +72,7 @@ daemonCommand
   .command("stop")
   .description("Stop the daemon")
   .action(async () => {
-    const projectRoot = process.cwd();
+    const projectRoot = requireProjectRoot();
 
     const pid = await readDaemonPid(projectRoot);
     if (!pid) {
@@ -98,7 +99,7 @@ daemonCommand
   .command("status")
   .description("Check daemon status")
   .action(async () => {
-    const projectRoot = process.cwd();
+    const projectRoot = requireProjectRoot();
 
     const pid = await readDaemonPid(projectRoot);
     if (!pid) {
@@ -119,7 +120,7 @@ daemonCommand
   .description("Tail daemon logs")
   .option("-f, --follow", "Follow log output", false)
   .action(async (options: { follow: boolean }) => {
-    const projectRoot = process.cwd();
+    const projectRoot = requireProjectRoot();
     const logPath = getDaemonLogPath(projectRoot);
 
     if (!existsSync(logPath)) {
