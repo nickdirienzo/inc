@@ -5,7 +5,7 @@ import type { EpicStatus } from "../../state/index.js";
 
 const VALID_STATUSES: EpicStatus[] = [
   "new", "spec_in_progress", "spec_complete", "plan_in_progress",
-  "plan_complete", "coding", "review", "done", "abandoned"
+  "plan_complete", "coding", "review", "pending_validation", "done", "abandoned"
 ];
 
 export const statusCommand = new Command("status")

@@ -16,6 +16,7 @@ enum EpicStatus: String, Codable, CaseIterable {
     case plan_complete
     case coding
     case review
+    case pending_validation
     case done
     case abandoned
 
@@ -36,6 +37,8 @@ enum EpicStatus: String, Codable, CaseIterable {
             return "Coding"
         case .review:
             return "Review"
+        case .pending_validation:
+            return "Validating"
         case .done:
             return "Done"
         case .abandoned:
@@ -46,7 +49,7 @@ enum EpicStatus: String, Codable, CaseIterable {
     /// Whether this status indicates the epic is "in flight"
     var isInFlight: Bool {
         switch self {
-        case .spec_in_progress, .spec_complete, .plan_in_progress, .plan_complete, .coding, .review:
+        case .spec_in_progress, .spec_complete, .plan_in_progress, .plan_complete, .coding, .review, .pending_validation:
             return true
         case .new, .done, .abandoned:
             return false

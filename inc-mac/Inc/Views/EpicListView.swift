@@ -12,12 +12,14 @@ struct EpicListView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Header
             HStack {
                 Text("Epics")
                     .font(.headline)
                     .fontWeight(.semibold)
                 Spacer()
+                Toggle("Hide Done", isOn: $viewModel.hideDone)
+                    .toggleStyle(.checkbox)
+                    .font(.caption)
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
@@ -41,7 +43,7 @@ struct EpicListView: View {
                 // Scrollable epic list
                 ScrollView {
                     LazyVStack(spacing: 0) {
-                        ForEach(viewModel.epics) { epic in
+                        ForEach(viewModel.filteredEpics) { epic in
                             EpicRow(
                                 epic: epic,
                                 isSelected: epic.epic.id == viewModel.selectedEpicId
@@ -69,18 +71,30 @@ struct EpicRow: View {
     let epic: EpicWithTasks
     let isSelected: Bool
 
+    private var shortId: String {
+        String(epic.epic.id.prefix(8))
+    }
+
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            // Left side: Epic info
             VStack(alignment: .leading, spacing: 6) {
-                // Epic name
-                Text(epic.displayName)
-                    .font(.body)
-                    .fontWeight(.medium)
-                    .foregroundColor(.primary)
+                HStack(spacing: 8) {
+                    Text(shortId)
+                        .font(.system(.callout, design: .monospaced))
+                        .fontWeight(.semibold)
+                        .foregroundColor(.primary)
+                    if let slug = epic.registryEntry.slug, !slug.isEmpty {
+                        Text(slug)
+                            .font(.callout)
+                            .foregroundColor(.secondary)
+                    }
+                }
+
+                Text(epic.epic.description)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
                     .lineLimit(2)
 
-                // Status badge
                 StatusBadge(status: epic.epic.status)
 
                 // Task progress (if tasks exist)
@@ -142,6 +156,8 @@ struct StatusBadge: View {
             return .orange
         case .review:
             return .orange.opacity(0.8)
+        case .pending_validation:
+            return .yellow
         case .done:
             return .green
         case .abandoned:

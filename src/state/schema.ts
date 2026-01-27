@@ -12,6 +12,7 @@ export type EpicStatus =
   | "plan_complete"
   | "coding"
   | "review"
+  | "pending_validation"
   | "done"
   | "abandoned";
 

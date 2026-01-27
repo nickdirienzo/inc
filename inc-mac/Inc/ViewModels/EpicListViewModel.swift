@@ -18,6 +18,9 @@ class EpicListViewModel: ObservableObject {
     /// Array of all loaded epics with their tasks
     @Published var epics: [EpicWithTasks] = []
 
+    /// Whether to hide done epics
+    @Published var hideDone: Bool = true
+
     /// ID of the currently selected epic
     @Published var selectedEpicId: String?
 
@@ -40,6 +43,14 @@ class EpicListViewModel: ObservableObject {
             return nil
         }
         return epics.first { $0.epic.id == selectedId }
+    }
+
+    /// Returns filtered epics based on hideDone setting
+    var filteredEpics: [EpicWithTasks] {
+        if hideDone {
+            return epics.filter { $0.epic.status != .done && $0.epic.status != .abandoned }
+        }
+        return epics
     }
 
     // MARK: - Initialization
