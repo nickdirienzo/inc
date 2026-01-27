@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { resolveEpicId, submitRequest } from "../../state/index.js";
+import { resolveEpicId, submitRequest, requireProjectRoot } from "../../state/index.js";
 
 export const taskCommand = new Command("task")
   .description("Manage tasks within an epic")
@@ -10,7 +10,7 @@ export const taskCommand = new Command("task")
   .option("--feedback <feedback>", "Feedback message")
   .option("--assignee <assignee>", "Assignee")
   .action(async (epicArg: string, taskIdArg: string, action: string, value: string | undefined, options: { feedback?: string; assignee?: string }) => {
-    const projectRoot = process.cwd();
+    const projectRoot = requireProjectRoot();
     const taskId = parseInt(taskIdArg, 10);
 
     if (isNaN(taskId)) {

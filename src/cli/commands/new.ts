@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { createEpic, initIncDir, getEpicDir } from "../../state/index.js";
+import { createEpic, initIncDir, getEpicDir, findProjectRoot } from "../../state/index.js";
 import { registerEpic } from "../../registry/index.js";
 import { readFile, writeFile, unlink } from "node:fs/promises";
 import { spawn } from "node:child_process";
@@ -84,7 +84,7 @@ export const newCommand = new Command("new")
   .argument("[description]", "Description of the epic (optional if using --file or $EDITOR)")
   .option("-f, --file <path>", "Read epic brief from a file")
   .action(async (description: string | undefined, options: { file?: string }) => {
-    const projectRoot = process.cwd();
+    const projectRoot = findProjectRoot() ?? process.cwd();
 
     try {
       let brief: string;

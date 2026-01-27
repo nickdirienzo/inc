@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { readEpic, writeEpic, resolveEpicId } from "../../state/index.js";
+import { readEpic, writeEpic, resolveEpicId, requireProjectRoot } from "../../state/index.js";
 import type { EpicStatus } from "../../state/index.js";
 
 export const approveCommand = new Command("approve")
@@ -7,7 +7,7 @@ export const approveCommand = new Command("approve")
   .argument("<type>", "What to approve: spec, plan, or pr")
   .argument("<epic-id>", "The epic to approve")
   .action(async (type: string, epicId: string) => {
-    const projectRoot = process.cwd();
+    const projectRoot = requireProjectRoot();
 
     try {
       const resolved = await resolveEpicId(projectRoot, epicId);

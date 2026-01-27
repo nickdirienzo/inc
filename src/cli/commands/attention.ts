@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { resolveEpicId, submitRequest } from "../../state/index.js";
+import { resolveEpicId, submitRequest, requireProjectRoot } from "../../state/index.js";
 
 export const attentionCommand = new Command("attention")
   .description("Manage attention requests between agents");
@@ -12,7 +12,7 @@ attentionCommand
   .argument("<to>", "Who to ask: em, pm, tech_lead, or user")
   .argument("<question>", "Your question")
   .action(async (epicArg: string, from: string, to: string, question: string) => {
-    const projectRoot = process.cwd();
+    const projectRoot = requireProjectRoot();
 
     const validSources = ["pm", "tech_lead", "coder"];
     if (!validSources.includes(from)) {
@@ -55,7 +55,7 @@ attentionCommand
   .description("Clear the attention request for an epic")
   .argument("<epic>", "Epic ID or short ID")
   .action(async (epicArg: string) => {
-    const projectRoot = process.cwd();
+    const projectRoot = requireProjectRoot();
 
     const resolved = await resolveEpicId(projectRoot, epicArg);
     if (!resolved) {

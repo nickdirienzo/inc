@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import { createInterface } from "node:readline";
-import { readEpic, writeEpic, resolveEpicId } from "../../state/index.js";
+import { readEpic, writeEpic, resolveEpicId, findProjectRoot } from "../../state/index.js";
 import { unregisterEpic, lookupEpic, searchEpics } from "../../registry/index.js";
 import { cleanupEpicWorkspaces, isJjRepo } from "../../jj/index.js";
 
@@ -9,7 +9,7 @@ export const abandonCommand = new Command("abandon")
   .argument("<epic-id>", "Epic to abandon")
   .option("--force", "Skip confirmation")
   .action(async (epicId: string, options: { force?: boolean }) => {
-    let projectRoot = process.cwd();
+    let projectRoot = findProjectRoot() ?? process.cwd();
 
     try {
       // First try to resolve epic ID (supports short IDs) in current directory
