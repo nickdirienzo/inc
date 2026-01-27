@@ -5,9 +5,10 @@
  * This keeps the project directory clean and provides isolation.
  */
 
-import { join } from "node:path";
+import { join, dirname, resolve } from "node:path";
 import { homedir } from "node:os";
 import { createHash } from "node:crypto";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 
 const INC_HOME = join(homedir(), ".inc");
 const PROJECTS_DIR = "projects";
@@ -133,4 +134,57 @@ export function getDeferredDir(projectRoot: string): string {
  */
 export function getDeferredItemPath(projectRoot: string, itemId: string): string {
   return join(getDeferredDir(projectRoot), `${itemId}.json`);
+}
+
+interface ProjectMetadata {
+  projectRoot: string;
+  projectName: string;
+  createdAt: string;
+}
+
+export function findProjectRoot(startDir?: string): string | null {
+  const cwd = resolve(startDir ?? process.cwd());
+  const projectsDir = join(INC_HOME, PROJECTS_DIR);
+
+  if (!existsSync(projectsDir)) {
+    return null;
+  }
+
+  const projectHashes = readdirSync(projectsDir);
+  const registeredProjects: string[] = [];
+
+  for (const hash of projectHashes) {
+    const metadataPath = join(projectsDir, hash, "project.json");
+    if (existsSync(metadataPath)) {
+      try {
+        const metadata: ProjectMetadata = JSON.parse(readFileSync(metadataPath, "utf-8"));
+        registeredProjects.push(metadata.projectRoot);
+      } catch {
+      }
+    }
+  }
+
+  let current = cwd;
+  while (true) {
+    if (registeredProjects.includes(current)) {
+      return current;
+    }
+
+    const parent = dirname(current);
+    if (parent === current) {
+      break;
+    }
+    current = parent;
+  }
+
+  return null;
+}
+
+export function requireProjectRoot(startDir?: string): string {
+  const projectRoot = findProjectRoot(startDir);
+  if (!projectRoot) {
+    console.error("Not in a registered Inc project. Run 'inc init' first or navigate to a registered project.");
+    process.exit(1);
+  }
+  return projectRoot;
 }
