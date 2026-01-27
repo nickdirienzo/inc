@@ -33,7 +33,7 @@ export interface ClearAttentionRequest {
 export interface SetStatusRequest {
   type: "set-status";
   epicId: string;
-  status: "new" | "spec_in_progress" | "spec_complete" | "plan_in_progress" | "plan_complete" | "coding" | "review" | "done" | "abandoned";
+  status: "new" | "spec_in_progress" | "spec_complete" | "plan_in_progress" | "plan_complete" | "coding" | "review" | "pending_validation" | "done" | "abandoned";
 }
 
 export interface UpdateEpicRequest {
@@ -41,7 +41,7 @@ export interface UpdateEpicRequest {
   epicId: string;
   fields: {
     pr_number?: number;
-    status?: "new" | "spec_in_progress" | "spec_complete" | "plan_in_progress" | "plan_complete" | "coding" | "review" | "done" | "abandoned";
+    status?: "new" | "spec_in_progress" | "spec_complete" | "plan_in_progress" | "plan_complete" | "coding" | "review" | "pending_validation" | "done" | "abandoned";
   };
 }
 

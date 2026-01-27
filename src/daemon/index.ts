@@ -684,12 +684,17 @@ async function runEngineeringManager(): Promise<void> {
           // Clean up epic workspaces
           await cleanupEpicWorkspaces(projectRoot, epicId);
 
-          // Mark epic as done
-          epic.status = "done";
+          // Move to pending_validation - EM will validate before marking done
+          epic.status = "pending_validation";
           epic.merged_at = new Date().toISOString();
+          epic.needs_attention = {
+            from: "em",
+            to: "em",
+            question: `PR #${epic.pr_number} has been merged. Validate that the feature works as specified before marking done. If you cannot validate, escalate to user.`,
+          };
           await writeEpic(projectRoot, epic);
 
-          log(`[EM] Epic ${epicId} marked as done and workspaces cleaned up`);
+          log(`[EM] Epic ${epicId} moved to pending_validation for acceptance testing`);
         } else {
           // Conflict detected - create conflict resolution epic
           log(`[EM] Conflict detected when updating default workspace: ${updateResult.error}`);
@@ -702,13 +707,18 @@ async function runEngineeringManager(): Promise<void> {
 
           log(`[EM] Created conflict resolution epic: ${conflictEpic.id}`);
 
-          // Still mark original epic as done and clean up
+          // Move to pending_validation despite conflict
           await cleanupEpicWorkspaces(projectRoot, epicId);
-          epic.status = "done";
+          epic.status = "pending_validation";
           epic.merged_at = new Date().toISOString();
+          epic.needs_attention = {
+            from: "em",
+            to: "em",
+            question: `PR #${epic.pr_number} has been merged (with conflict epic ${conflictEpic.id} created). Validate that the feature works as specified before marking done. If you cannot validate, escalate to user.`,
+          };
           await writeEpic(projectRoot, epic);
 
-          log(`[EM] Epic ${epicId} marked as done despite conflict`);
+          log(`[EM] Epic ${epicId} moved to pending_validation despite conflict`);
         }
       }
     }
