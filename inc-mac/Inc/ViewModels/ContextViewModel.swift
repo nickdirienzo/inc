@@ -9,7 +9,7 @@ import Foundation
 import Combine
 
 /// Represents a file displayed in the context pane
-struct ContextFile {
+struct ContextFile: Equatable {
     let path: String
     let content: String
     let language: String
