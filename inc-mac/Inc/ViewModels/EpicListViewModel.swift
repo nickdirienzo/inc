@@ -50,7 +50,8 @@ class EpicListViewModel: ObservableObject {
     }
 
     deinit {
-        stopWatching()
+        fileWatcher?.stop()
+        fileWatcher = nil
     }
 
     // MARK: - Public Methods
@@ -61,8 +62,8 @@ class EpicListViewModel: ObservableObject {
         logger.info("Loading epics from filesystem")
 
         // Load epics on a background thread to avoid blocking UI
-        Task {
-            let loadedEpics = await Task.detached {
+        Swift.Task {
+            let loadedEpics = await Swift.Task.detached {
                 return EpicLoader.loadAllEpics()
             }.value
 
@@ -90,7 +91,7 @@ class EpicListViewModel: ObservableObject {
 
         fileWatcher = FileWatcher(paths: [registryPath], debounceInterval: 0.3) { [weak self] in
             guard let self = self else { return }
-            Task { @MainActor in
+            Swift.Task { @MainActor in
                 self.logger.info("Registry file changed, reloading epics")
                 self.loadEpics()
             }
