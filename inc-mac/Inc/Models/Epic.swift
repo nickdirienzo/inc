@@ -82,3 +82,40 @@ struct Epic: Codable, Identifiable {
         needs_attention != nil
     }
 }
+
+/// Enriched epic data combining registry, epic, and tasks information
+struct EpicWithTasks: Identifiable {
+    let epic: Epic
+    let registryEntry: RegistryEntry
+    let tasksFile: TasksFile?
+
+    /// Use epic.id as the Identifiable ID
+    var id: String {
+        epic.id
+    }
+
+    /// Display name from registry (slug or short ID)
+    var displayName: String {
+        registryEntry.displayName
+    }
+
+    /// Project path from registry
+    var projectPath: String {
+        registryEntry.projectPath
+    }
+
+    /// Task progress (0.0 to 1.0)
+    var taskProgress: Double {
+        tasksFile?.progress ?? 0.0
+    }
+
+    /// Task progress string (e.g., "3/5")
+    var taskProgressString: String {
+        tasksFile?.progressString ?? "0/0"
+    }
+
+    /// Whether this epic has tasks
+    var hasTasks: Bool {
+        tasksFile != nil && (tasksFile?.totalCount ?? 0) > 0
+    }
+}
