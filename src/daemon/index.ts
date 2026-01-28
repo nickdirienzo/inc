@@ -919,24 +919,19 @@ async function checkAndSpawnForEpic(epicId: string): Promise<void> {
           spawnCoderAgent(epic, task);
         }
 
-        // Check if all tasks are done
+        // Check if all tasks are done - spawn tech lead to review and potentially add more tasks or create PR
         const allDone = tasksFile.tasks.every((t) => t.status === "done");
         if (allDone && tasksFile.tasks.length > 0) {
-          // Move to review
-          epic.status = "review";
-          await writeEpic(projectRoot, epic);
-          log(`All tasks complete for ${epicId}, moving to review`);
+          log(`All tasks complete for ${epicId}, spawning tech lead to review`);
+          spawnTechLeadAgent(epic);
         }
       }
       break;
     }
 
     case "review":
-      // Check if PR already exists
-      if (!epic.pr_number) {
-        // Spawn Tech Lead to create the PR
-        spawnTechLeadAgent(epic);
-      }
+      // Only reach review status after PR is created
+      // Tech lead handles PR creation from coding status
       break;
   }
 }
