@@ -21,6 +21,9 @@ struct ContentView: View {
     /// Current project root directory (initialized to current working directory)
     @State private var projectRoot: String = FileManager.default.currentDirectoryPath
 
+    /// Trigger for focusing the chat input field
+    @State private var shouldFocusChat: Bool = false
+
     var body: some View {
         HStack(spacing: 0) {
             // Left sidebar: Epic list
@@ -62,7 +65,7 @@ struct ContentView: View {
                 Divider()
 
                 // Chat interface
-                ChatView(viewModel: chatViewModel)
+                ChatView(viewModel: chatViewModel, shouldFocus: $shouldFocusChat)
             }
             .frame(minWidth: 400)
 
@@ -74,7 +77,14 @@ struct ContentView: View {
                 case .context:
                     ContextView(viewModel: contextViewModel)
                 case .document:
-                    DocumentView(viewModel: documentViewModel)
+                    DocumentView(viewModel: documentViewModel, onChatAboutEpic: {
+                        // Trigger chat focus and optionally add a system message
+                        shouldFocusChat = true
+                        chatViewModel.addMessage(
+                            role: .system,
+                            content: "You are now chatting about this epic with PM and Tech Lead agents"
+                        )
+                    })
                 case .none:
                     // Empty state
                     EmptyView()
@@ -94,11 +104,13 @@ struct ContentView: View {
         }
         .frame(minWidth: 1000, minHeight: 600)
         .onChange(of: epicListViewModel.selectedEpicId) { _ in
-            // Update chat view model with selected epic's project root
+            // Update chat view model with selected epic's project root and epic ID
             if let selectedEpic = epicListViewModel.selectedEpic {
                 chatViewModel.projectRoot = URL(fileURLWithPath: selectedEpic.projectPath)
+                chatViewModel.epicId = selectedEpic.epic.id
             } else {
                 chatViewModel.projectRoot = nil
+                chatViewModel.epicId = nil
             }
         }
     }

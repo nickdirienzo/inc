@@ -11,6 +11,9 @@ import SwiftUI
 struct ChatView: View {
     @ObservedObject var viewModel: ChatViewModel
 
+    /// Binding to trigger focus on the chat input field
+    @Binding var shouldFocus: Bool
+
     @State private var isHoveringOverSendButton = false
     @FocusState private var isInputFocused: Bool
 
@@ -52,6 +55,12 @@ struct ChatView: View {
 
             // Input area
             inputArea
+        }
+        .onChange(of: shouldFocus) { newValue in
+            if newValue {
+                isInputFocused = true
+                shouldFocus = false // Reset the trigger
+            }
         }
     }
 
@@ -161,7 +170,7 @@ struct ChatView_Previews: PreviewProvider {
                 ChatMessage(role: .user, content: "That makes sense. Thanks!", timestamp: Date().addingTimeInterval(-220))
             ]
             return vm
-        }())
+        }(), shouldFocus: .constant(false))
         .frame(width: 600, height: 500)
 
         // Preview with thinking indicator
@@ -172,11 +181,11 @@ struct ChatView_Previews: PreviewProvider {
             ]
             vm.isThinking = true
             return vm
-        }())
+        }(), shouldFocus: .constant(false))
         .frame(width: 600, height: 500)
 
         // Preview with empty state
-        ChatView(viewModel: ChatViewModel())
+        ChatView(viewModel: ChatViewModel(), shouldFocus: .constant(false))
             .frame(width: 600, height: 500)
     }
 }
