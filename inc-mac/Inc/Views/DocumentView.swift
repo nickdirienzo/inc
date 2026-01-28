@@ -11,7 +11,22 @@ struct DocumentView: View {
     @ObservedObject var viewModel: DocumentViewModel
 
     var body: some View {
-        if let document = viewModel.currentDocument {
+        switch viewModel.currentDocument {
+        case .none:
+            // No document open
+            VStack(spacing: 12) {
+                Text("No Document Selected")
+                    .font(.headline)
+                    .foregroundColor(.secondary)
+                Text("Click 'View Spec' or 'View Architecture' to view a document")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Spacer()
+            }
+            .padding()
+
+        case .loaded(let document):
+            // Document loaded successfully
             VStack(spacing: 0) {
                 // Header: document title + close button
                 ContextHeader(filePath: document.path, onClose: {
@@ -31,15 +46,16 @@ struct DocumentView: View {
                 // Footer: line count indicator
                 ContextFooter(lineCount: countLines(in: document.content))
             }
-        } else {
-            // No document open
+
+        case .error(let message):
+            // Error loading document
             VStack(spacing: 12) {
-                Text("No Document Selected")
-                    .font(.headline)
+                Image(systemName: "exclamationmark.triangle")
+                    .font(.system(size: 48))
                     .foregroundColor(.secondary)
-                Text("Click 'View Spec' or 'View Architecture' to view a document")
-                    .font(.caption)
+                Text(message)
                     .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
                 Spacer()
             }
             .padding()
@@ -64,7 +80,7 @@ struct DocumentView_Previews: PreviewProvider {
             DocumentView(viewModel: {
                 let vm = DocumentViewModel()
                 // Simulate a loaded spec
-                vm.currentDocument = DocumentFile(
+                vm.currentDocument = .loaded(DocumentFile(
                     path: "/Users/test/.inc/projects/abc123/epics/test123/spec.md",
                     content: """
                     # Spec: Example Epic
@@ -79,7 +95,7 @@ struct DocumentView_Previews: PreviewProvider {
                     - R2: Feature should be fast
                     """,
                     title: "spec.md"
-                )
+                ))
                 return vm
             }())
             .frame(width: 400, height: 600)
@@ -90,6 +106,15 @@ struct DocumentView_Previews: PreviewProvider {
             DocumentView(viewModel: DocumentViewModel())
                 .frame(width: 400, height: 600)
                 .previewDisplayName("No Document Open")
+
+            // Preview with error state
+            DocumentView(viewModel: {
+                let vm = DocumentViewModel()
+                vm.currentDocument = .error("Spec file not found: /Users/test/.inc/projects/abc123/epics/test123/spec.md")
+                return vm
+            }())
+            .frame(width: 400, height: 600)
+            .previewDisplayName("Error State")
         }
     }
 }

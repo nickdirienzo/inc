@@ -16,10 +16,15 @@ struct ContentView: View {
     @StateObject private var documentViewModel = DocumentViewModel()
     @StateObject private var rightPaneViewModel = RightPaneViewModel()
 
+    // MARK: - State Properties
+
+    /// Current project root directory (initialized to current working directory)
+    @State private var projectRoot: String = FileManager.default.currentDirectoryPath
+
     var body: some View {
         HStack(spacing: 0) {
             // Left sidebar: Epic list
-            EpicListView(viewModel: epicListViewModel)
+            EpicListView(projectRoot: projectRoot, viewModel: epicListViewModel)
 
             Divider()
 

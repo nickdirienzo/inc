@@ -7,6 +7,7 @@
 
 import Foundation
 import Combine
+import os.log
 
 /// Represents a document file displayed in the document pane
 struct DocumentFile: Equatable {
@@ -15,9 +16,17 @@ struct DocumentFile: Equatable {
     let title: String
 }
 
+/// Represents the state of the document viewer
+enum DocumentState: Equatable {
+    case none
+    case loaded(DocumentFile)
+    case error(String)
+}
+
 /// View model for the document pane that displays markdown documents
 class DocumentViewModel: ObservableObject {
-    @Published var currentDocument: DocumentFile? = nil
+    @Published var currentDocument: DocumentState = .none
+    private let logger = Logger(subsystem: "com.inc.Inc", category: "DocumentViewModel")
 
     /// Loads the spec.md file for a given epic
     /// - Parameters:
@@ -27,13 +36,17 @@ class DocumentViewModel: ObservableObject {
         let projectURL = URL(fileURLWithPath: projectPath)
         let specPath = IncPaths.getSpecPath(projectRoot: projectURL, epicId: epicId)
 
+        logger.info("Attempting to load spec file: \(specPath.path)")
+
         guard let content = loadFile(path: specPath) else {
-            currentDocument = nil
+            logger.error("Spec file not found: \(specPath.path)")
+            currentDocument = .error("Spec file not found: \(specPath.path)")
             return
         }
 
+        logger.info("Successfully loaded spec file: \(specPath.path)")
         let title = specPath.lastPathComponent
-        currentDocument = DocumentFile(path: specPath.path, content: content, title: title)
+        currentDocument = .loaded(DocumentFile(path: specPath.path, content: content, title: title))
     }
 
     /// Loads the architecture.md file for a given epic
@@ -44,18 +57,22 @@ class DocumentViewModel: ObservableObject {
         let projectURL = URL(fileURLWithPath: projectPath)
         let architecturePath = IncPaths.getArchitecturePath(projectRoot: projectURL, epicId: epicId)
 
+        logger.info("Attempting to load architecture file: \(architecturePath.path)")
+
         guard let content = loadFile(path: architecturePath) else {
-            currentDocument = nil
+            logger.error("Architecture file not found: \(architecturePath.path)")
+            currentDocument = .error("Architecture file not found: \(architecturePath.path)")
             return
         }
 
+        logger.info("Successfully loaded architecture file: \(architecturePath.path)")
         let title = architecturePath.lastPathComponent
-        currentDocument = DocumentFile(path: architecturePath.path, content: content, title: title)
+        currentDocument = .loaded(DocumentFile(path: architecturePath.path, content: content, title: title))
     }
 
     /// Closes the currently open document
     func closeDocument() {
-        currentDocument = nil
+        currentDocument = .none
     }
 
     /// Loads the content of a file from disk

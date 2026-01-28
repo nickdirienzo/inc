@@ -18,7 +18,8 @@ import Foundation
 class FileWatcher {
     // MARK: - Properties
 
-    private let paths: [URL]
+    private let initialPaths: [URL]  // Store initial paths for clearPaths()
+    private var paths: [URL]  // All currently watched paths (initial + dynamic)
     private let debounceInterval: TimeInterval
     private let onChange: () -> Void
 
@@ -30,6 +31,9 @@ class FileWatcher {
     private var isWatching = false
     private var pollingTimers: [Timer] = []
 
+    // Track which paths are being watched to avoid duplicates
+    private var watchedPaths: Set<String> = []
+
     // MARK: - Initialization
 
     /// Initialize a FileWatcher
@@ -38,6 +42,7 @@ class FileWatcher {
     ///   - debounceInterval: Time to wait after last change before firing callback (default: 0.3s)
     ///   - onChange: Callback invoked after debounce period when changes are detected
     init(paths: [URL], debounceInterval: TimeInterval = 0.3, onChange: @escaping () -> Void) {
+        self.initialPaths = paths
         self.paths = paths
         self.debounceInterval = debounceInterval
         self.onChange = onChange
@@ -56,6 +61,45 @@ class FileWatcher {
 
         for path in paths {
             startWatching(path: path)
+        }
+    }
+
+    /// Add a new path to watch dynamically
+    /// - Parameter path: The file or directory URL to start watching
+    /// - Note: If already watching this path, does nothing
+    func addPath(path: URL) {
+        let pathString = path.path
+
+        // Check if we're already watching this path
+        guard !watchedPaths.contains(pathString) else {
+            return
+        }
+
+        // Add to paths array
+        paths.append(path)
+
+        // If we're already watching, start watching this new path immediately
+        if isWatching {
+            startWatching(path: path)
+        }
+    }
+
+    /// Clear all dynamically added paths and stop watching them
+    /// - Note: Keeps watching the initial paths that were provided during initialization
+    func clearPaths() {
+        // Get the paths to remove (everything that's not in initialPaths)
+        let pathsToRemove = Set(paths.map { $0.path }).subtracting(Set(initialPaths.map { $0.path }))
+
+        // Reset paths to only initial paths
+        paths = initialPaths
+
+        // If we're watching, we need to stop and restart to clean up the removed paths
+        if isWatching && !pathsToRemove.isEmpty {
+            let wasWatching = isWatching
+            stop()
+            if wasWatching {
+                start()
+            }
         }
     }
 
@@ -85,12 +129,18 @@ class FileWatcher {
             close(fd)
         }
         fileDescriptors.removeAll()
+
+        // Clear watched paths tracking
+        watchedPaths.removeAll()
     }
 
     // MARK: - Private Methods
 
     private func startWatching(path: URL) {
         let filePath = path.path
+
+        // Mark this path as being watched
+        watchedPaths.insert(filePath)
 
         // Check if path exists
         if !FileManager.default.fileExists(atPath: filePath) {
