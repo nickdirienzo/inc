@@ -27,7 +27,7 @@ class TUIAgentService {
     private static let requestsDirectoryName = "requests"
     private static let logsDirectoryName = "logs"
     private static let requestType = "tui-query"
-    private static let timeout: TimeInterval = 30.0
+    private static let timeout: TimeInterval = 300.0 // 5 minutes - allows for long-running agent workflows
     private static let pollInterval: TimeInterval = 0.1 // 100ms polling interval
 
     // MARK: - Public API
@@ -444,7 +444,7 @@ enum TUIAgentError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .timeout:
-            return "Agent did not respond within 30 seconds"
+            return "Agent did not respond within 5 minutes"
         case .invalidResponse:
             return "Received invalid response from agent"
         case .fileNotFound:
