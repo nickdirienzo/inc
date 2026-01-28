@@ -83,9 +83,6 @@ class EpicListViewModel: ObservableObject {
                 self.epics = loadedEpics
                 self.isLoading = false
                 self.logger.info("Successfully loaded \(loadedEpics.count) epics")
-
-                // Setup epic directory watchers after epics are loaded
-                self.setupEpicDirectoryWatchers()
             }
         }
     }
@@ -97,45 +94,21 @@ class EpicListViewModel: ObservableObject {
         logger.debug("Selected epic: \(epicId)")
     }
 
-    /// Start watching registry.json for changes
+    /// Start watching ~/.inc for changes (FSEvents watches recursively)
     func startWatching() {
-        let registryPath = IncPaths.getRegistryPath()
+        let incHome = IncPaths.getIncHome()
 
-        logger.info("Starting file watcher for registry at: \(registryPath.path)")
+        logger.info("Starting file watcher for ~/.inc at: \(incHome.path)")
 
-        fileWatcher = FileWatcher(paths: [registryPath], debounceInterval: 0.3) { [weak self] in
+        fileWatcher = FileWatcher(paths: [incHome], debounceInterval: 0.3) { [weak self] in
             guard let self = self else { return }
             _Concurrency.Task { @MainActor in
-                self.logger.info("Registry file changed, reloading epics")
+                self.logger.info("Inc directory changed, reloading epics")
                 self.loadEpics()
-                // Note: setupEpicDirectoryWatchers() is also called inside loadEpics() after completion
-                // This call ensures watchers are updated even if loadEpics() is already running
-                self.setupEpicDirectoryWatchers()
             }
         }
 
         fileWatcher?.start()
-    }
-
-    /// Set up watchers for individual epic directories to catch epic.json/tasks.json changes
-    func setupEpicDirectoryWatchers() {
-        guard let fileWatcher = fileWatcher else {
-            logger.warning("Cannot setup epic directory watchers - fileWatcher is nil")
-            return
-        }
-
-        fileWatcher.clearPaths()
-
-        logger.info("Setting up epic directory watchers for \(self.epics.count) epic(s)")
-
-        for epic in self.epics {
-            let projectRootURL = URL(fileURLWithPath: epic.registryEntry.projectPath)
-            let epicDir = IncPaths.getEpicsDir(projectRoot: projectRootURL)
-                .appendingPathComponent(epic.epic.id)
-
-            logger.debug("Adding watcher for epic directory: \(epicDir.path)")
-            fileWatcher.addPath(path: epicDir)
-        }
     }
 
     /// Stop watching for file changes
