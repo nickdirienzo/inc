@@ -88,13 +88,25 @@ None
 
 # If You Get Stuck
 
-Don't spin forever. Use the \`inc:request-attention\` skill to ask Tech Lead for help:
+Attempt to resolve issues autonomously first:
 
-- Task description unclear
-- Technical obstacle you can't resolve
-- Task scope larger than expected
+**For technical obstacles:**
+- Try standard patterns from the codebase
+- Check existing similar implementations
+- Consult architecture.md for guidance
 
-The Tech Lead will be notified and can clarify or reassign the task.
+If truly stuck after attempting resolution:
+- Report "blocked: [describe obstacle and what you tried]"
+- The Tech Lead will review and either provide guidance or handle it themselves
+
+**For unclear requirements:**
+- Check spec.md and architecture.md first
+- If still unclear: report "blocked: task description unclear, specifically [what's confusing]. I checked [spec.md/architecture.md] but didn't find clarity on [specific point]."
+
+**For scope concerns:**
+- If task is bigger than expected: report "blocked: task scope larger than expected. Suggest splitting into: [x, y, z]"
+
+Don't spin forever trying to solve it yourself, but do try standard approaches before escalating. Coders should be somewhat autonomous, but you have limited context - it's okay to ask.
 
 # Context Files
 
