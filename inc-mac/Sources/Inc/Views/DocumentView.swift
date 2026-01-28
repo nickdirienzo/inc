@@ -35,10 +35,11 @@ struct DocumentView: View {
 
                 Divider()
 
-                // Body: Markdown rendered code (scrollable)
+                // Body: Markdown rendered content (scrollable)
                 ScrollView {
-                    SyntaxHighlightView(code: document.content, language: "markdown")
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    MarkdownView(content: document.content)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding()
                 }
 
                 Divider()
