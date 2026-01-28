@@ -26,6 +26,7 @@ enum DocumentState: Equatable {
 /// View model for the document pane that displays markdown documents
 class DocumentViewModel: ObservableObject {
     @Published var currentDocument: DocumentState = .none
+    @Published var isReloading: Bool = false
     private let logger = Logger(subsystem: "com.inc.Inc", category: "DocumentViewModel")
 
     /// Loads the spec.md file for a given epic

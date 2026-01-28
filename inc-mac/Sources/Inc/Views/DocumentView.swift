@@ -10,6 +10,9 @@ import SwiftUI
 struct DocumentView: View {
     @ObservedObject var viewModel: DocumentViewModel
 
+    /// Callback to trigger when "Chat about this epic" button is clicked
+    var onChatAboutEpic: (() -> Void)? = nil
+
     var body: some View {
         switch viewModel.currentDocument {
         case .none:
@@ -28,10 +31,8 @@ struct DocumentView: View {
         case .loaded(let document):
             // Document loaded successfully
             VStack(spacing: 0) {
-                // Header: document title + close button
-                ContextHeader(filePath: document.path, onClose: {
-                    viewModel.closeDocument()
-                })
+                // Header: document title + chat button + close button
+                documentHeader(document: document)
 
                 Divider()
 
@@ -40,6 +41,27 @@ struct DocumentView: View {
                     MarkdownView(content: document.content)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding()
+                }
+                .overlay(alignment: .topTrailing) {
+                    if viewModel.isReloading {
+                        HStack(spacing: 8) {
+                            ProgressView()
+                                .scaleEffect(0.7)
+                            Text("Updating...")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(Color(NSColor.windowBackgroundColor).opacity(0.9))
+                                .shadow(radius: 2)
+                        )
+                        .padding(.trailing, 12)
+                        .padding(.top, 8)
+                        .transition(.opacity)
+                        .animation(.easeInOut(duration: 0.2), value: viewModel.isReloading)
+                    }
                 }
 
                 Divider()
@@ -69,6 +91,53 @@ struct DocumentView: View {
     private func countLines(in content: String) -> Int {
         let lines = content.components(separatedBy: .newlines)
         return lines.count
+    }
+
+    /// Custom header for document view with chat button
+    private func documentHeader(document: DocumentFile) -> some View {
+        HStack(spacing: 8) {
+            // File path with middle truncation
+            Text(truncatedPath(document.path))
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(.secondary)
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            // "Chat about this epic" button
+            if let onChatAboutEpic = onChatAboutEpic {
+                Button(action: onChatAboutEpic) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "message.fill")
+                            .font(.system(size: 12))
+                        Text("Chat about this epic")
+                            .font(.system(size: 12))
+                    }
+                    .foregroundColor(.accentColor)
+                }
+                .buttonStyle(.plain)
+                .help("Start a chat about this epic with PM and Tech Lead agents")
+            }
+
+            // Close button
+            Button(action: {
+                viewModel.closeDocument()
+            }) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 16))
+                    .foregroundColor(.secondary)
+            }
+            .buttonStyle(.plain)
+            .help("Close document")
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(Color(NSColor.windowBackgroundColor))
+    }
+
+    /// Truncates a file path for display
+    private func truncatedPath(_ path: String) -> String {
+        path
     }
 }
 
