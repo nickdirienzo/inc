@@ -9,9 +9,15 @@ let package = Package(
     products: [
         .executable(name: "Inc", targets: ["Inc"])
     ],
+    dependencies: [
+        .package(url: "https://github.com/gonzalezreal/swift-markdown-ui", from: "2.4.0")
+    ],
     targets: [
         .executableTarget(
             name: "Inc",
+            dependencies: [
+                .product(name: "MarkdownUI", package: "swift-markdown-ui")
+            ],
             resources: [
                 .process("Resources")
             ]
