@@ -76,7 +76,7 @@ class TUIAgentService {
             "id": requestId,
             "type": Self.requestType,
             "message": message,
-            "timestamp": ISO8601DateFormatter().string(from: Date())
+            "projectRoot": projectRoot.path
         ]
 
         let jsonData = try JSONSerialization.data(withJSONObject: request, options: [.prettyPrinted])
@@ -138,34 +138,20 @@ class TUIAgentService {
     /// Find the log file that corresponds to this request
     private func findLogFile(requestId: String, projectRoot: URL) throws -> URL? {
         let projectIncDir = IncPaths.getProjectIncDir(projectRoot: projectRoot)
-
-        // Look for log files in the project's log directory
-        // The daemon creates log files like: ~/.inc/projects/<hash>/logs/agent-<timestamp>.jsonl
-        // We need to find logs that contain our request ID
-
-        // For simplicity, we'll check the main logs directory
-        // In a real implementation, we'd need to know which epic this belongs to
         let logsDir = projectIncDir.appendingPathComponent(Self.logsDirectoryName)
 
         guard FileManager.default.fileExists(atPath: logsDir.path) else {
             return nil
         }
 
-        let files = try FileManager.default.contentsOfDirectory(
-            at: logsDir,
-            includingPropertiesForKeys: [.creationDateKey],
-            options: [.skipsHiddenFiles]
-        )
+        // Look for log file named: tui-query-<requestId>.jsonl
+        let expectedLogFile = logsDir.appendingPathComponent("tui-query-\(requestId).jsonl")
 
-        // Find the most recent log file
-        let sortedFiles = files.sorted { file1, file2 in
-            let date1 = (try? file1.resourceValues(forKeys: [.creationDateKey]).creationDate) ?? Date.distantPast
-            let date2 = (try? file2.resourceValues(forKeys: [.creationDateKey]).creationDate) ?? Date.distantPast
-            return date1 > date2
+        if FileManager.default.fileExists(atPath: expectedLogFile.path) {
+            return expectedLogFile
         }
 
-        // Return the most recent log file
-        return sortedFiles.first
+        return nil
     }
 
     /// Read log file incrementally from a given position

@@ -45,7 +45,14 @@ export interface UpdateEpicRequest {
   };
 }
 
-export type QueueRequest = TaskStatusRequest | AttentionRequest | ClearAttentionRequest | SetStatusRequest | UpdateEpicRequest;
+export interface TuiQueryRequest {
+  type: "tui-query";
+  id: string;
+  message: string;
+  projectRoot: string;
+}
+
+export type QueueRequest = TaskStatusRequest | AttentionRequest | ClearAttentionRequest | SetStatusRequest | UpdateEpicRequest | TuiQueryRequest;
 
 export interface QueueResponse {
   success: boolean;
