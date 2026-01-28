@@ -24,11 +24,14 @@ import {
   getPendingRequests,
   completeRequest,
   initRequestsDir,
+  appendChatMessage,
+  pruneOldMessages,
   type Epic,
   type Task,
   type DaemonState,
   type ActiveAgent,
   type QueueRequest,
+  type ChatMessage,
 } from "../state/index.js";
 import { getPmPrompt, getTechLeadPrompt, getCoderPrompt, getEmPrompt } from "../prompts/index.js";
 import {
@@ -46,6 +49,7 @@ import {
 import { createConflictResolutionEpic } from "../state/index.js";
 import { AgentLogger } from "../agents/logging.js";
 import { submitRequest } from "../state/queue.js";
+import { spawnEpicChatAgents } from "./epicChatRouter.js";
 
 const projectRoot = process.argv[2] || process.cwd();
 
@@ -600,6 +604,75 @@ async function processQueueRequests(): Promise<void> {
           }
           await writeEpic(projectRoot, epic);
           await completeRequest(projectRoot, id, { success: true });
+          break;
+        }
+        case "epic-chat": {
+          const epic = await readEpic(projectRoot, request.epicId);
+          if (!epic) {
+            await completeRequest(projectRoot, id, { success: false, error: `Epic ${request.epicId} not found` });
+            break;
+          }
+
+          log(`[Queue] Processing epic-chat for ${request.epicId}`);
+
+          try {
+            // Append user message to chat history
+            const userMessage: ChatMessage = {
+              role: "user",
+              content: request.message,
+              timestamp: request.timestamp || new Date().toISOString(),
+            };
+            await appendChatMessage(projectRoot, request.epicId, userMessage);
+
+            // Create shared logger for the chat request
+            const logger = new AgentLogger(projectRoot, request.epicId, "epic-chat");
+
+            // Spawn PM and Tech Lead agents to respond
+            await spawnEpicChatAgents(epic, request.message, logger, projectRoot);
+
+            // Close the logger to ensure all entries are flushed
+            await logger.close();
+
+            // Read the log file to extract agent responses and append to chat.jsonl
+            const logsDir = getEpicDir(projectRoot, request.epicId) + "/logs";
+            const logPath = `${logsDir}/epic-chat.jsonl`;
+
+            try {
+              const { readFile } = await import("node:fs/promises");
+              const logContent = await readFile(logPath, "utf-8");
+              const logLines = logContent.trim().split("\n");
+
+              for (const line of logLines) {
+                try {
+                  const entry = JSON.parse(line);
+                  // Look for agent responses with role metadata
+                  if (entry.content && typeof entry.content === "object" &&
+                      entry.content.type === "text" &&
+                      (entry.content.role === "pm" || entry.content.role === "tech_lead")) {
+                    const agentMessage: ChatMessage = {
+                      role: entry.content.role,
+                      content: entry.content.content,
+                      timestamp: entry.timestamp,
+                    };
+                    await appendChatMessage(projectRoot, request.epicId, agentMessage);
+                  }
+                } catch (parseError) {
+                  // Skip invalid log lines
+                }
+              }
+            } catch (readError) {
+              log(`[Queue] Warning: Could not read log file for epic-chat: ${readError}`);
+              // Continue anyway - the request was processed successfully
+            }
+
+            // Prune chat history to keep only latest 100 messages
+            await pruneOldMessages(projectRoot, request.epicId, 100);
+
+            await completeRequest(projectRoot, id, { success: true });
+          } catch (error) {
+            log(`[Queue] Error processing epic-chat for ${request.epicId}: ${error}`);
+            await completeRequest(projectRoot, id, { success: false, error: String(error) });
+          }
           break;
         }
         default:

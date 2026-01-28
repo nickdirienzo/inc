@@ -8,9 +8,12 @@
 
 import Foundation
 
+// Import MessageRole from ChatViewModel for role information in epic chat responses
+// Note: MessageRole enum is defined in ChatViewModel.swift
+
 /// Response types from the TUI agent
 enum AgentResponse {
-    case text(String)
+    case text(String, role: MessageRole?)
     case thinking
     case complete
     case error(String)
@@ -58,6 +61,36 @@ class TUIAgentService {
         }
     }
 
+    /// Send an epic chat query and receive an async stream of responses with role information
+    /// - Parameters:
+    ///   - message: The user's message/query
+    ///   - epicId: The epic ID
+    ///   - projectRoot: The project root URL
+    /// - Returns: AsyncStream of AgentResponse events with role information
+    func sendEpicChatQuery(message: String, epicId: String, projectRoot: URL) async throws -> AsyncStream<AgentResponse> {
+        // Generate UUID for this request
+        let requestId = UUID().uuidString
+
+        // Write epic-chat request file
+        try await writeEpicChatRequest(requestId: requestId, message: message, epicId: epicId, projectRoot: projectRoot)
+
+        // Stream responses by polling log files with role parsing
+        return AsyncStream { continuation in
+            _Concurrency.Task {
+                do {
+                    try await pollForEpicChatResponse(
+                        requestId: requestId,
+                        projectRoot: projectRoot,
+                        continuation: continuation
+                    )
+                } catch {
+                    continuation.yield(.error(error.localizedDescription))
+                    continuation.finish()
+                }
+            }
+        }
+    }
+
     // MARK: - Private Implementation
 
     /// Write the request JSON file to the requests directory
@@ -75,6 +108,33 @@ class TUIAgentService {
         let request: [String: Any] = [
             "id": requestId,
             "type": Self.requestType,
+            "message": message,
+            "timestamp": ISO8601DateFormatter().string(from: Date())
+        ]
+
+        let jsonData = try JSONSerialization.data(withJSONObject: request, options: [.prettyPrinted])
+
+        // Write to file
+        let requestPath = requestsDir.appendingPathComponent("\(requestId).json")
+        try jsonData.write(to: requestPath)
+    }
+
+    /// Write the epic-chat request JSON file to the requests directory
+    private func writeEpicChatRequest(requestId: String, message: String, epicId: String, projectRoot: URL) async throws {
+        let requestsDir = getRequestsDir(projectRoot: projectRoot)
+
+        // Ensure requests directory exists
+        try FileManager.default.createDirectory(
+            at: requestsDir,
+            withIntermediateDirectories: true,
+            attributes: nil
+        )
+
+        // Create epic-chat request JSON
+        let request: [String: Any] = [
+            "id": requestId,
+            "type": "epic-chat",
+            "epic_id": epicId,
             "message": message,
             "timestamp": ISO8601DateFormatter().string(from: Date())
         ]
@@ -118,7 +178,54 @@ class TUIAgentService {
                 // Yield any new text
                 if !newText.isEmpty {
                     accumulatedText += newText
-                    continuation.yield(.text(newText))
+                    continuation.yield(.text(newText, role: nil))
+                }
+
+                // Check if complete
+                if completed {
+                    isComplete = true
+                    continuation.yield(.complete)
+                    continuation.finish()
+                    return
+                }
+            }
+
+            // Sleep before next poll
+            try await _Concurrency.Task.sleep(nanoseconds: UInt64(Self.pollInterval * 1_000_000_000))
+        }
+    }
+
+    /// Poll for epic chat agent response by watching log files and parsing role information
+    private func pollForEpicChatResponse(
+        requestId: String,
+        projectRoot: URL,
+        continuation: AsyncStream<AgentResponse>.Continuation
+    ) async throws {
+        let startTime = Date()
+        var lastLogPosition: UInt64 = 0
+        var isComplete = false
+
+        // Emit thinking indicator initially
+        continuation.yield(.thinking)
+
+        while !isComplete {
+            // Check timeout
+            if Date().timeIntervalSince(startTime) > Self.timeout {
+                throw TUIAgentError.timeout
+            }
+
+            // Try to find and read the log file for this request
+            if let logFile = try findLogFile(requestId: requestId, projectRoot: projectRoot) {
+                let (responses, newPosition, completed) = try readEpicChatLogIncremental(
+                    logFile: logFile,
+                    fromPosition: lastLogPosition
+                )
+
+                lastLogPosition = newPosition
+
+                // Yield all responses with role information
+                for response in responses {
+                    continuation.yield(response)
                 }
 
                 // Check if complete
@@ -228,6 +335,94 @@ class TUIAgentService {
         }
 
         return (accumulatedText, newPosition, isComplete)
+    }
+
+    /// Read epic chat log file incrementally from a given position with role parsing
+    /// Returns: (array of responses, new position, is complete)
+    private func readEpicChatLogIncremental(
+        logFile: URL,
+        fromPosition: UInt64
+    ) throws -> ([AgentResponse], UInt64, Bool) {
+        guard let fileHandle = try? FileHandle(forReadingFrom: logFile) else {
+            return ([], fromPosition, false)
+        }
+
+        defer {
+            try? fileHandle.close()
+        }
+
+        // Seek to last read position
+        if fromPosition > 0 {
+            try fileHandle.seek(toOffset: fromPosition)
+        }
+
+        // Read new data
+        let data = fileHandle.readDataToEndOfFile()
+        let newPosition = fromPosition + UInt64(data.count)
+
+        guard let content = String(data: data, encoding: .utf8) else {
+            return ([], newPosition, false)
+        }
+
+        // Parse JSONL entries
+        let lines = content.components(separatedBy: .newlines).filter { !$0.isEmpty }
+        var responses: [AgentResponse] = []
+        var isComplete = false
+
+        for line in lines {
+            guard let jsonData = line.data(using: .utf8),
+                  let entry = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any] else {
+                continue
+            }
+
+            // Extract type and role from log entries
+            // Epic chat log entries have format: { type: "text" | "complete" | "error", role: "pm" | "tech_lead", content: string }
+            if let type = entry["type"] as? String {
+                switch type {
+                case "text":
+                    if let text = entry["content"] as? String {
+                        // Parse role from entry
+                        let role = parseMessageRole(from: entry["role"] as? String)
+                        responses.append(.text(text, role: role))
+                    }
+                case "complete":
+                    isComplete = true
+                case "error":
+                    if let errorMsg = entry["content"] as? String {
+                        responses.append(.error(errorMsg))
+                    }
+                    isComplete = true
+                default:
+                    break
+                }
+            }
+        }
+
+        return (responses, newPosition, isComplete)
+    }
+
+    /// Parse MessageRole from string representation
+    private func parseMessageRole(from roleString: String?) -> MessageRole? {
+        guard let roleString = roleString else {
+            return nil
+        }
+
+        switch roleString {
+        case "pm":
+            return .pm
+        case "tech_lead":
+            return .techLead
+        case "user":
+            return .user
+        case "system":
+            return .system
+        case "coder":
+            return .coder
+        case "agent":
+            return .agent
+        default:
+            return nil
+        }
     }
 
     // MARK: - Path Utilities

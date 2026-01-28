@@ -68,10 +68,21 @@ class ChatViewModel: ObservableObject {
     @Published var inputText: String = ""
 
     /// Maximum number of messages to keep in history
-    private let maxMessageHistory = 20
+    private let maxMessageHistory = 100
 
     /// The root URL of the selected epic project
     @Published var projectRoot: URL?
+
+    /// The ID of the selected epic (for epic chat mode)
+    @Published var epicId: String? {
+        didSet {
+            if epicId != oldValue {
+                _Concurrency.Task {
+                    await loadChatHistory()
+                }
+            }
+        }
+    }
 
     /// TUI Agent Service for communicating with the agent
     private let tuiService = TUIAgentService()
@@ -90,7 +101,13 @@ class ChatViewModel: ObservableObject {
         }
 
         // Add user message
-        addUserMessage(trimmedContent)
+        let userMessage = ChatMessage(role: .user, content: trimmedContent)
+        appendMessage(userMessage)
+
+        // Append user message to history if in epic chat mode
+        if epicId != nil {
+            await appendMessageToHistory(userMessage)
+        }
 
         // Clear input
         inputText = ""
@@ -110,8 +127,19 @@ class ChatViewModel: ObservableObject {
         isThinking = true
 
         do {
-            // Send query to TUI agent service
-            let stream = try await tuiService.sendQuery(trimmedContent, projectRoot: projectRoot)
+            // Choose the appropriate service method based on whether epicId is set
+            let stream: AsyncStream<AgentResponse>
+            if let epicId = epicId {
+                // Use epic chat query for multi-agent epic chat
+                stream = try await tuiService.sendEpicChatQuery(
+                    message: trimmedContent,
+                    epicId: epicId,
+                    projectRoot: projectRoot
+                )
+            } else {
+                // Use regular query for non-epic chat
+                stream = try await tuiService.sendQuery(trimmedContent, projectRoot: projectRoot)
+            }
 
             // Variable to accumulate text for current agent message
             var currentAgentMessage: ChatMessage?
@@ -119,7 +147,7 @@ class ChatViewModel: ObservableObject {
             // Process streamed responses
             for await response in stream {
                 switch response {
-                case .text(let text):
+                case .text(let text, let role):
                     // Accumulate text into the current agent message
                     if var message = currentAgentMessage {
                         // Update existing message content
@@ -136,8 +164,9 @@ class ChatViewModel: ObservableObject {
                             messages[index] = message
                         }
                     } else {
-                        // Create new agent message
-                        let message = ChatMessage(role: .agent, content: text)
+                        // Create new agent message with appropriate role
+                        let messageRole = role ?? .agent
+                        let message = ChatMessage(role: messageRole, content: text)
                         currentAgentMessage = message
                         appendMessage(message)
                     }
@@ -147,7 +176,10 @@ class ChatViewModel: ObservableObject {
                     break
 
                 case .complete:
-                    // Response complete
+                    // Response complete - append agent message to history if in epic chat mode
+                    if let agentMessage = currentAgentMessage, epicId != nil {
+                        await appendMessageToHistory(agentMessage)
+                    }
                     isThinking = false
 
                 case .error(let errorMessage):
@@ -168,6 +200,123 @@ class ChatViewModel: ObservableObject {
     /// Clear all messages
     func clearMessages() {
         messages.removeAll()
+    }
+
+    /// Load chat history from chat.jsonl file
+    func loadChatHistory() async {
+        // Clear existing messages
+        messages.removeAll()
+
+        // Check if epicId and projectRoot are set
+        guard let epicId = epicId, let projectRoot = projectRoot else {
+            return
+        }
+
+        // Get path to chat.jsonl
+        let chatHistoryPath = getChatHistoryPath(projectRoot: projectRoot, epicId: epicId)
+
+        // Check if file exists
+        guard FileManager.default.fileExists(atPath: chatHistoryPath.path) else {
+            // No chat history yet - this is normal for new epics
+            return
+        }
+
+        do {
+            // Read the chat.jsonl file
+            let content = try String(contentsOf: chatHistoryPath, encoding: .utf8)
+
+            // Parse JSONL entries
+            let lines = content.components(separatedBy: .newlines).filter { !$0.isEmpty }
+
+            for line in lines {
+                guard let jsonData = line.data(using: .utf8),
+                      let entry = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any] else {
+                    continue
+                }
+
+                // Parse role, content, and timestamp
+                guard let roleString = entry["role"] as? String,
+                      let content = entry["content"] as? String,
+                      let timestampString = entry["timestamp"] as? String else {
+                    continue
+                }
+
+                // Parse role
+                let role = MessageRole(rawValue: roleString) ?? .system
+
+                // Parse timestamp
+                let timestamp: Date
+                if let date = ISO8601DateFormatter().date(from: timestampString) {
+                    timestamp = date
+                } else {
+                    timestamp = Date()
+                }
+
+                // Create and append message
+                let message = ChatMessage(role: role, content: content, timestamp: timestamp)
+                messages.append(message)
+            }
+        } catch {
+            // Failed to read chat history - log error but don't crash
+            print("Failed to load chat history: \(error)")
+        }
+    }
+
+    /// Get the path to chat.jsonl for a given epic
+    private func getChatHistoryPath(projectRoot: URL, epicId: String) -> URL {
+        return IncPaths.getEpicsDir(projectRoot: projectRoot)
+            .appendingPathComponent(epicId)
+            .appendingPathComponent("chat.jsonl")
+    }
+
+    /// Append a message to chat.jsonl file
+    private func appendMessageToHistory(_ message: ChatMessage) async {
+        // Check if epicId and projectRoot are set
+        guard let epicId = epicId, let projectRoot = projectRoot else {
+            return
+        }
+
+        // Get path to chat.jsonl
+        let chatHistoryPath = getChatHistoryPath(projectRoot: projectRoot, epicId: epicId)
+
+        // Ensure the epic directory exists
+        let epicDir = chatHistoryPath.deletingLastPathComponent()
+        try? FileManager.default.createDirectory(
+            at: epicDir,
+            withIntermediateDirectories: true,
+            attributes: nil
+        )
+
+        // Create JSONL entry
+        let entry: [String: Any] = [
+            "role": message.role.rawValue,
+            "content": message.content,
+            "timestamp": ISO8601DateFormatter().string(from: message.timestamp)
+        ]
+
+        do {
+            let jsonData = try JSONSerialization.data(withJSONObject: entry, options: [])
+            guard var jsonString = String(data: jsonData, encoding: .utf8) else {
+                return
+            }
+            jsonString += "\n"
+
+            // Append to file
+            if let fileHandle = try? FileHandle(forWritingTo: chatHistoryPath) {
+                defer {
+                    try? fileHandle.close()
+                }
+                fileHandle.seekToEndOfFile()
+                if let data = jsonString.data(using: .utf8) {
+                    fileHandle.write(data)
+                }
+            } else {
+                // File doesn't exist yet - create it
+                try jsonString.write(to: chatHistoryPath, atomically: true, encoding: .utf8)
+            }
+        } catch {
+            print("Failed to append message to chat history: \(error)")
+        }
     }
 
     /// Add a user message to the chat

@@ -45,7 +45,14 @@ export interface UpdateEpicRequest {
   };
 }
 
-export type QueueRequest = TaskStatusRequest | AttentionRequest | ClearAttentionRequest | SetStatusRequest | UpdateEpicRequest;
+export interface EpicChatRequest {
+  type: "epic-chat";
+  epicId: string;
+  message: string;
+  timestamp: string;
+}
+
+export type QueueRequest = TaskStatusRequest | AttentionRequest | ClearAttentionRequest | SetStatusRequest | UpdateEpicRequest | EpicChatRequest;
 
 export interface QueueResponse {
   success: boolean;
