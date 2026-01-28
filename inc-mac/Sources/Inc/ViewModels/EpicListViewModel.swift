@@ -117,28 +117,24 @@ class EpicListViewModel: ObservableObject {
         fileWatcher?.start()
     }
 
-    /// Set up watchers for epic directories to catch task.json changes
+    /// Set up watchers for individual epic directories to catch epic.json/tasks.json changes
     func setupEpicDirectoryWatchers() {
         guard let fileWatcher = fileWatcher else {
             logger.warning("Cannot setup epic directory watchers - fileWatcher is nil")
             return
         }
 
-        // Clear any previously added paths (keeps initial registry.json watch)
         fileWatcher.clearPaths()
 
-        // Get unique project paths from all loaded epics
-        let uniqueProjectPaths = Set(epics.map { $0.registryEntry.projectPath })
+        logger.info("Setting up epic directory watchers for \(self.epics.count) epic(s)")
 
-        logger.info("Setting up epic directory watchers for \(uniqueProjectPaths.count) project(s)")
+        for epic in self.epics {
+            let projectRootURL = URL(fileURLWithPath: epic.registryEntry.projectPath)
+            let epicDir = IncPaths.getEpicsDir(projectRoot: projectRootURL)
+                .appendingPathComponent(epic.epic.id)
 
-        // Add a watcher for each project's epics directory
-        for projectPath in uniqueProjectPaths {
-            let projectRootURL = URL(fileURLWithPath: projectPath)
-            let epicsDir = IncPaths.getEpicsDir(projectRoot: projectRootURL)
-
-            logger.debug("Adding watcher for epics directory: \(epicsDir.path)")
-            fileWatcher.addPath(path: epicsDir)
+            logger.debug("Adding watcher for epic directory: \(epicDir.path)")
+            fileWatcher.addPath(path: epicDir)
         }
     }
 
