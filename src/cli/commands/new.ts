@@ -123,7 +123,7 @@ export const newCommand = new Command("new")
       console.log(`  Status: ${epic.status}`);
       console.log(`  Path: ${epicDir}`);
       console.log("");
-      console.log(`Next: run 'inc chat ${epic.id}' to start working with the PM`);
+      console.log(`Next: The EM will review your epic and route it automatically`);
     } catch (error) {
       console.error("Failed to create epic:", error);
       process.exit(1);

@@ -483,19 +483,44 @@ async function spawnEmAgent(epic: Epic): Promise<void> {
 
   try {
     const epicDir = getEpicDir(projectRoot, epic.id);
-    const systemPrompt = getEmPrompt(epic.id, epicDir);
+    const mode = epic.needs_attention ? "attention" : "triage";
+    const systemPrompt = getEmPrompt(epic.id, epicDir, mode);
+
+    // Configure tools based on mode
+    const tools = mode === "triage"
+      ? ["Read", "Glob", "Grep", "Write", "Bash", "Skill"]
+      : ["Read", "Glob", "Grep", "Bash", "Skill"];
+
+    const allowedTools = mode === "triage"
+      ? ["Read", "Glob", "Grep", "Write(*/tasks.json)", "Bash(inc:*)", "Skill"]
+      : ["Read", "Glob", "Grep", "Bash(inc:*)", "Skill"];
+
+    // Add write restriction hook for triage mode
+    const hooks = mode === "triage"
+      ? {
+          PreToolUse: [{
+            matcher: 'Write',
+            hooks: [createWriteRestrictionHook([epicDir + '/tasks.json'])]
+          }]
+        }
+      : undefined;
+
+    const prompt = mode === "triage"
+      ? "Triage this new epic and decide whether to create tasks or route to PM."
+      : "Review the attention request and handle it appropriately.";
 
     const queryHandle = query({
-      prompt: "Review the attention request and handle it appropriately.",
+      prompt,
       options: {
         cwd: projectRoot,
         systemPrompt,
-        tools: ["Read", "Glob", "Grep", "Bash", "Skill"],
-        allowedTools: ["Read", "Glob", "Grep", "Bash(inc:*)", "Skill"],
+        tools,
+        allowedTools,
         permissionMode: "acceptEdits",
         additionalDirectories: [epicDir],
         maxTurns: 20,
         plugins: [{ type: "local", path: incPluginDir }],
+        ...(hooks && { hooks }),
       },
     });
     agent.query_handle = queryHandle;
@@ -924,13 +949,12 @@ async function checkAndSpawnForEpic(epicId: string): Promise<void> {
 
   switch (epic.status) {
     case "new":
+      // EM should triage the epic
+      spawnEmAgent(epic);
+      break;
+
     case "spec_in_progress":
       // PM should be working on spec
-      // Update status if new
-      if (epic.status === "new") {
-        epic.status = "spec_in_progress";
-        await writeEpic(projectRoot, epic);
-      }
       spawnPmAgent(epic);
       break;
 
