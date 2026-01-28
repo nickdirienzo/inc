@@ -10,3 +10,10 @@ export {
   listDeferredItems,
   promoteDeferredItem,
 } from "./deferred.js";
+
+export type { ChatMessage } from "./chat.js";
+export {
+  loadChatHistory,
+  appendChatMessage,
+  pruneOldMessages,
+} from "./chat.js";

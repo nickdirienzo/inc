@@ -34,7 +34,28 @@ inc status
 
 # Start the background daemon
 inc daemon start
+
+# Launch the Mac app (macOS only)
+open inc-mac/Inc.app
 ```
+
+### Mac App: Group Chat Experience
+
+The **Inc Mission Control** Mac app provides a visual interface for managing epics with a unique **group chat** feature. Instead of choosing which agent to talk to, you can discuss planning documents with PM and Tech Lead agents in a unified chat interface.
+
+**Key features:**
+- 📄 View spec.md and architecture.md side-by-side with chat
+- 💬 Ask questions naturally - both PM and Tech Lead respond based on expertise
+- 🎨 Color-coded role badges (PM=purple, Tech Lead=orange)
+- 💾 Chat history persists across sessions
+- ⚡ Real-time agent responses with streaming
+
+**Quick start:**
+1. Build the app: `cd inc-mac && ./build.sh`
+2. Run: `open Inc.app`
+3. Select an epic, click "View Spec", then "Chat about this epic"
+
+See [inc-mac/README.md](inc-mac/README.md) for detailed documentation.
 
 ## Project Structure
 
