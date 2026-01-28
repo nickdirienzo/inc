@@ -13,9 +13,7 @@ struct ContentView: View {
     @StateObject private var epicListViewModel = EpicListViewModel()
     @StateObject private var chatViewModel = ChatViewModel()
     @StateObject private var contextViewModel = ContextViewModel()
-    // Note: DocumentViewModel and DocumentView not yet implemented (tasks 8-10)
-    // TODO: Uncomment when DocumentViewModel is available
-    // @StateObject private var documentViewModel = DocumentViewModel()
+    @StateObject private var documentViewModel = DocumentViewModel()
     @StateObject private var rightPaneViewModel = RightPaneViewModel()
 
     var body: some View {
@@ -27,9 +25,7 @@ struct ContentView: View {
 
             // Center pane: Document action buttons + Chat view
             VStack(spacing: 0) {
-                // Document action buttons (hidden until DocumentViewModel is implemented)
-                // TODO: Uncomment when DocumentViewModel is available
-                /*
+                // Document action buttons
                 HStack(spacing: 12) {
                     Button("View Spec") {
                         if let selectedEpic = epicListViewModel.selectedEpic {
@@ -59,7 +55,6 @@ struct ContentView: View {
                 .padding(.vertical, 8)
 
                 Divider()
-                */
 
                 // Chat interface
                 ChatView(viewModel: chatViewModel)
@@ -74,19 +69,7 @@ struct ContentView: View {
                 case .context:
                     ContextView(viewModel: contextViewModel)
                 case .document:
-                    // TODO: Uncomment when DocumentView is available
-                    // DocumentView(viewModel: documentViewModel)
-
-                    // Placeholder until DocumentView is implemented
-                    VStack {
-                        Text("Document Viewer")
-                            .font(.headline)
-                            .padding()
-                        Text("DocumentView not yet implemented")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        Spacer()
-                    }
+                    DocumentView(viewModel: documentViewModel)
                 case .none:
                     // Empty state
                     EmptyView()
@@ -108,12 +91,9 @@ struct ContentView: View {
         .onChange(of: epicListViewModel.selectedEpicId) { _ in
             // Update chat view model with selected epic's project root
             if let selectedEpic = epicListViewModel.selectedEpic {
-                // Note: ChatViewModel doesn't have projectRoot property yet (task 11 incomplete)
-                // TODO: Uncomment when task 11 is complete
-                // chatViewModel.projectRoot = URL(fileURLWithPath: selectedEpic.projectPath)
+                chatViewModel.projectRoot = URL(fileURLWithPath: selectedEpic.projectPath)
             } else {
-                // TODO: Uncomment when task 11 is complete
-                // chatViewModel.projectRoot = nil
+                chatViewModel.projectRoot = nil
             }
         }
     }
