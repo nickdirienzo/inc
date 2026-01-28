@@ -1,33 +1,20 @@
 #!/bin/bash
 set -e
 
-# Simple build script for Inc.app
-# This compiles all Swift files and creates an app bundle
-
 echo "🔨 Building Inc.app..."
 
-# Create app bundle structure
+swift build -c release
+
 APP="Inc.app"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS"
 mkdir -p "$APP/Contents/Resources"
 
-# Find all Swift files
-SWIFT_FILES=$(find Inc -name "*.swift" -type f | grep -v "Tests\.swift" | tr '\n' ' ')
+cp .build/release/Inc "$APP/Contents/MacOS/Inc"
 
-echo "📦 Compiling Swift files..."
-swiftc \
-  -o "$APP/Contents/MacOS/Inc" \
-  $SWIFT_FILES \
-  -framework SwiftUI \
-  -framework Foundation \
-  -framework AppKit \
-  -framework Combine \
-  -sdk /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk \
-  -target arm64-apple-macos13.0 \
-  -O
+cp -r Sources/Inc/Resources/Assets.xcassets "$APP/Contents/Resources/" 2>/dev/null || true
+cp Sources/Inc/Resources/highlight.html "$APP/Contents/Resources/" 2>/dev/null || true
 
-# Create Info.plist
 cat > "$APP/Contents/Info.plist" << 'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -48,19 +35,16 @@ cat > "$APP/Contents/Info.plist" << 'EOF'
 	<key>CFBundleVersion</key>
 	<string>1</string>
 	<key>LSMinimumSystemVersion</key>
-	<string>11.0</string>
+	<string>13.0</string>
 	<key>NSHumanReadableCopyright</key>
 	<string></string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.developer-tools</string>
+	<key>NSHighResolutionCapable</key>
+	<true/>
 </dict>
 </plist>
 EOF
-
-# Copy Assets if they exist
-if [ -d "Inc/Resources/Assets.xcassets" ]; then
-  cp -r "Inc/Resources/Assets.xcassets" "$APP/Contents/Resources/"
-fi
 
 echo "✅ Build complete: $APP"
 echo "🚀 Run with: open $APP"
