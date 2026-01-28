@@ -8,7 +8,10 @@
 import SwiftUI
 
 struct EpicListView: View {
+    let projectRoot: String
     @ObservedObject var viewModel: EpicListViewModel
+    @State private var showingNewEpicSheet = false
+    @State private var newEpicDescription = ""
 
     var body: some View {
         VStack(spacing: 0) {
@@ -16,6 +19,18 @@ struct EpicListView: View {
                 Text("Epics")
                     .font(.headline)
                     .fontWeight(.semibold)
+
+                Button(action: {
+                    showingNewEpicSheet = true
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "plus")
+                        Text("New Epic")
+                    }
+                    .font(.caption)
+                }
+                .buttonStyle(.borderless)
+
                 Spacer()
                 Toggle("Hide Done", isOn: $viewModel.hideDone)
                     .toggleStyle(.checkbox)
@@ -62,6 +77,18 @@ struct EpicListView: View {
         }
         .frame(minWidth: 250, idealWidth: 300, maxWidth: 400)
         .background(Color(NSColor.controlBackgroundColor))
+        .sheet(isPresented: $showingNewEpicSheet) {
+            NewEpicSheet(
+                isPresented: $showingNewEpicSheet,
+                description: $newEpicDescription,
+                projectRoot: projectRoot,
+                viewModel: viewModel,
+                onSuccess: { epicId in
+                    viewModel.selectEpic(epicId)
+                    newEpicDescription = ""
+                }
+            )
+        }
     }
 }
 
@@ -70,6 +97,7 @@ struct EpicListView: View {
 struct EpicRow: View {
     let epic: EpicWithTasks
     let isSelected: Bool
+    @State var isHovering = false
 
     private var shortId: String {
         String(epic.epic.id.prefix(8))
@@ -117,8 +145,11 @@ struct EpicRow: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
         .background(
-            isSelected ? Color.accentColor.opacity(0.15) : Color.clear
+            isSelected ? Color.accentColor.opacity(0.2) : (isHovering ? Color.accentColor.opacity(0.08) : Color.clear)
         )
+        .onHover { hovering in
+            isHovering = hovering
+        }
     }
 }
 
@@ -166,16 +197,126 @@ struct StatusBadge: View {
     }
 }
 
+// MARK: - NewEpicSheet Component
+
+struct NewEpicSheet: View {
+    @Binding var isPresented: Bool
+    @Binding var description: String
+    let projectRoot: String
+    let viewModel: EpicListViewModel
+    let onSuccess: (String) -> Void
+
+    @State private var isCreating = false
+    @State private var errorMessage: String? = nil
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header
+            HStack {
+                Text("Create New Epic")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                Spacer()
+            }
+            .padding()
+
+            Divider()
+
+            // Form
+            Form {
+                VStack(alignment: .leading, spacing: 16) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Epic Description")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+
+                        TextField("Enter epic description", text: $description, axis: .vertical)
+                            .textFieldStyle(.roundedBorder)
+                            .lineLimit(3...6)
+                            .disabled(isCreating)
+                    }
+
+                    // Button row
+                    HStack {
+                        Spacer()
+
+                        Button("Cancel") {
+                            isPresented = false
+                        }
+                        .keyboardShortcut(.cancelAction)
+                        .disabled(isCreating)
+
+                        Button("Create") {
+                            createEpic()
+                        }
+                        .keyboardShortcut(.defaultAction)
+                        .disabled(description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isCreating)
+                        .buttonStyle(.borderedProminent)
+                    }
+
+                    // Loading indicator
+                    if isCreating {
+                        HStack {
+                            Spacer()
+                            ProgressView()
+                                .controlSize(.small)
+                            Text("Creating epic...")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Spacer()
+                        }
+                    }
+                }
+                .padding()
+            }
+            .formStyle(.grouped)
+        }
+        .frame(width: 400, height: 250)
+        .alert("Error Creating Epic", isPresented: .constant(errorMessage != nil)) {
+            Button("OK") {
+                errorMessage = nil
+            }
+        } message: {
+            if let errorMessage = errorMessage {
+                Text(errorMessage)
+            }
+        }
+    }
+
+    private func createEpic() {
+        _Concurrency.Task {
+            isCreating = true
+            defer { isCreating = false }
+
+            do {
+                let epicId = try await viewModel.createEpic(
+                    description: description.trimmingCharacters(in: .whitespacesAndNewlines),
+                    projectRoot: projectRoot
+                )
+
+                // Success - dismiss sheet and call success handler
+                isPresented = false
+                onSuccess(epicId)
+            } catch {
+                // Show error alert
+                errorMessage = error.localizedDescription
+            }
+        }
+    }
+}
+
 // MARK: - Preview
 
 struct EpicListView_Previews: PreviewProvider {
     static var previews: some View {
         Group {
             // Preview with epics
-            EpicListView(viewModel: {
-                let vm = EpicListViewModel()
-                // Create mock data
-                let mockRegistry1 = RegistryEntry(
+            EpicListView(
+                projectRoot: "/Users/test/projects/myapp",
+                viewModel: {
+                    let vm = EpicListViewModel()
+                    // Create mock data
+                    let mockRegistry1 = RegistryEntry(
                     epicId: "abc123",
                     slug: "user-auth",
                     projectPath: "/Users/test/projects/myapp",
@@ -255,15 +396,18 @@ struct EpicListView_Previews: PreviewProvider {
                 ]
                 vm.selectedEpicId = "abc123"
                 return vm
-            }())
+            }()
+            )
             .frame(width: 300, height: 600)
             .previewDisplayName("With Epics - Light")
             .preferredColorScheme(.light)
 
             // Preview with epics (Dark Mode)
-            EpicListView(viewModel: {
-                let vm = EpicListViewModel()
-                let mockRegistry1 = RegistryEntry(
+            EpicListView(
+                projectRoot: "/Users/test/projects/myapp",
+                viewModel: {
+                    let vm = EpicListViewModel()
+                    let mockRegistry1 = RegistryEntry(
                     epicId: "abc123",
                     slug: "user-auth",
                     projectPath: "/Users/test/projects/myapp",
@@ -287,14 +431,18 @@ struct EpicListView_Previews: PreviewProvider {
                     EpicWithTasks(epic: mockEpic1, registryEntry: mockRegistry1, tasksFile: nil)
                 ]
                 return vm
-            }())
+            }()
+            )
             .frame(width: 300, height: 600)
             .previewDisplayName("With Epics - Dark")
             .preferredColorScheme(.dark)
 
             // Preview with no epics
-            EpicListView(viewModel: EpicListViewModel())
-                .frame(width: 300, height: 600)
+            EpicListView(
+                projectRoot: "/Users/test/projects/myapp",
+                viewModel: EpicListViewModel()
+            )
+            .frame(width: 300, height: 600)
                 .previewDisplayName("No Epics")
         }
     }
