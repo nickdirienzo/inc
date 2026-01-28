@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Code Highlight</title>
+
+    <!-- highlight.js CDN - using minimal theme for fast loading -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css" media="(prefers-color-scheme: dark)">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css" media="(prefers-color-scheme: light)">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+
+    <!-- Common language support -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/typescript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/swift.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/json.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/bash.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/markdown.min.js"></script>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: transparent;
+            font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+            font-size: 13px;
+            line-height: 1.5;
+            overflow-x: auto;
+        }
+
+        pre {
+            background: transparent !important;
+            margin: 0;
+            padding: 12px;
+        }
+
+        code {
+            background: transparent !important;
+            padding: 0;
+            font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+            font-size: 13px;
+        }
+
+        /* Dark mode support */
+        @media (prefers-color-scheme: dark) {
+            body {
+                color: #e6e6e6;
+            }
+        }
+
+        @media (prefers-color-scheme: light) {
+            body {
+                color: #24292e;
+            }
+        }
+
+        /* Line numbers */
+        .hljs-ln-numbers {
+            text-align: right;
+            padding-right: 12px;
+            color: #6e7681;
+            user-select: none;
+            border-right: 1px solid #30363d;
+        }
+
+        @media (prefers-color-scheme: light) {
+            .hljs-ln-numbers {
+                color: #57606a;
+                border-right: 1px solid #d0d7de;
+            }
+        }
+
+        .hljs-ln-code {
+            padding-left: 12px;
+        }
+    </style>
+</head>
+<body>
+    <pre><code id="code-content" class="{{LANGUAGE}}">{{CODE}}</code></pre>
+
+    <script>
+        // Disable all navigation and editing
+        document.addEventListener('contextmenu', e => e.preventDefault());
+        document.addEventListener('selectstart', () => false);
+
+        // Apply syntax highlighting
+        document.addEventListener('DOMContentLoaded', () => {
+            hljs.highlightAll();
+        });
+    </script>
+</body>
+</html>
