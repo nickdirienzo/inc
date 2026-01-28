@@ -36,21 +36,23 @@ enum AttentionRole: String, Codable {
 struct NeedsAttention: Codable {
     let from: AttentionRole
     let to: AttentionRole
-    let question: String
+    let question: String?
+    let message: String?
     let escalation_count: Int?
 
-    /// Number of escalations (defaults to 0 if not set)
+    var text: String {
+        question ?? message ?? ""
+    }
+
     var escalationCount: Int {
         escalation_count ?? 0
     }
 
-    /// Whether this has been escalated
     var isEscalated: Bool {
         escalationCount > 0
     }
 
-    /// Formatted summary for display (e.g., "PM → User: What should we do?")
     var summary: String {
-        "\(from.displayName) → \(to.displayName): \(question)"
+        "\(from.displayName) → \(to.displayName): \(text)"
     }
 }

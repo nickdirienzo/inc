@@ -361,6 +361,7 @@ struct EpicListView_Previews: PreviewProvider {
                         from: .pm,
                         to: .user,
                         question: "Should we include analytics?",
+                        message: nil,
                         escalation_count: 0
                     ),
                     pr_number: nil,
