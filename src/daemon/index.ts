@@ -921,7 +921,7 @@ async function checkAndSpawnForEpic(epicId: string): Promise<void> {
 
         // Check if all tasks are done - spawn tech lead to review and potentially add more tasks or create PR
         const allDone = tasksFile.tasks.every((t) => t.status === "done");
-        if (allDone && tasksFile.tasks.length > 0) {
+        if (allDone && tasksFile.tasks.length > 0 && !activeAgents.has(`tech_lead:${epicId}`)) {
           log(`All tasks complete for ${epicId}, spawning tech lead to review`);
           spawnTechLeadAgent(epic);
         }
