@@ -70,6 +70,12 @@ class ChatViewModel: ObservableObject {
     /// Maximum number of messages to keep in history
     private let maxMessageHistory = 20
 
+    /// The root URL of the selected epic project
+    @Published var projectRoot: URL?
+
+    /// TUI Agent Service for communicating with the agent
+    private let tuiService = TUIAgentService()
+
     init() {
         // Initialize with empty state
     }
@@ -89,16 +95,74 @@ class ChatViewModel: ObservableObject {
         // Clear input
         inputText = ""
 
+        // Check if a project is selected
+        guard let projectRoot = projectRoot else {
+            addMessage(role: .system, content: "No epic selected. Please select an epic to chat with the agent.")
+            return
+        }
+
+        // Ensure isThinking is always reset
+        defer {
+            isThinking = false
+        }
+
         // Set thinking state
         isThinking = true
 
-        // TODO: Wire to TUIAgentService in task 13
-        // For now, just add a placeholder agent response
-        try? await _Concurrency.Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+        do {
+            // Send query to TUI agent service
+            let stream = try await tuiService.sendQuery(trimmedContent, projectRoot: projectRoot)
 
-        addAgentMessage("This is a placeholder response. TUIAgentService will be wired in task 13.")
+            // Variable to accumulate text for current agent message
+            var currentAgentMessage: ChatMessage?
 
-        isThinking = false
+            // Process streamed responses
+            for await response in stream {
+                switch response {
+                case .text(let text):
+                    // Accumulate text into the current agent message
+                    if var message = currentAgentMessage {
+                        // Update existing message content
+                        message = ChatMessage(
+                            id: message.id,
+                            role: message.role,
+                            content: message.content + text,
+                            timestamp: message.timestamp
+                        )
+                        currentAgentMessage = message
+
+                        // Update the message in the array
+                        if let index = messages.firstIndex(where: { $0.id == message.id }) {
+                            messages[index] = message
+                        }
+                    } else {
+                        // Create new agent message
+                        let message = ChatMessage(role: .agent, content: text)
+                        currentAgentMessage = message
+                        appendMessage(message)
+                    }
+
+                case .thinking:
+                    // Already handled by isThinking property
+                    break
+
+                case .complete:
+                    // Response complete
+                    isThinking = false
+
+                case .error(let errorMessage):
+                    // Show error as system message
+                    addMessage(role: .system, content: "Agent error: \(errorMessage)")
+                    isThinking = false
+                }
+            }
+        } catch {
+            // Handle connection errors
+            addMessage(
+                role: .system,
+                content: "Failed to connect to agent service. Make sure the Inc daemon is running. Error: \(error.localizedDescription)"
+            )
+        }
     }
 
     /// Clear all messages

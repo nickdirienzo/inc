@@ -8,6 +8,8 @@ import { watch } from "chokidar";
 import { query, type HookCallback } from "@anthropic-ai/claude-agent-sdk";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { createWriteStream } from "node:fs";
+import { mkdir } from "node:fs/promises";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -15,6 +17,7 @@ const incPluginDir = join(__dirname, "../..");
 import {
   getEpicsDir,
   getEpicDir,
+  getProjectIncDir,
   listEpics,
   readEpic,
   writeEpic,
@@ -600,6 +603,36 @@ async function processQueueRequests(): Promise<void> {
           }
           await writeEpic(projectRoot, epic);
           await completeRequest(projectRoot, id, { success: true });
+          break;
+        }
+        case "tui-query": {
+          // Import executeTuiAgentQuery dynamically to avoid circular dependencies
+          const { executeTuiAgentQuery } = await import('../tui/agent/query.js');
+
+          // Create log file path
+          const projectIncDir = getProjectIncDir(request.projectRoot);
+          const logsDir = join(projectIncDir, 'logs');
+          await mkdir(logsDir, { recursive: true });
+          const logPath = join(logsDir, `tui-query-${request.id}.jsonl`);
+
+          log(`[Queue] Processing TUI query ${request.id}, logging to ${logPath}`);
+
+          // Stream agent responses to log file
+          try {
+            const logStream = createWriteStream(logPath);
+
+            for await (const response of executeTuiAgentQuery(request.message, request.projectRoot)) {
+              const entry = JSON.stringify(response) + '\n';
+              logStream.write(entry);
+            }
+
+            logStream.end();
+            log(`[Queue] TUI query ${request.id} completed successfully`);
+            await completeRequest(projectRoot, id, { success: true });
+          } catch (error) {
+            log(`[Queue] TUI query ${request.id} error: ${error}`);
+            await completeRequest(projectRoot, id, { success: false, error: String(error) });
+          }
           break;
         }
         default:
